@@ -4,8 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .core.db import AsyncSessionLocal
 from .routers import auth, agents, tools, chat, triggers, admin, webhooks, subscription, run_logs
-from .services.scheduler_service import start_scheduler, stop_scheduler, get_scheduler
+from .services.scheduler_service import start_scheduler, stop_scheduler, get_scheduler, schedule_trigger
 from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy import select
+from .models.trigger import AutoTrigger
 
 
 @asynccontextmanager
@@ -22,6 +24,14 @@ async def lifespan(app: FastAPI):
         id="weekly_energy_refresh",
         replace_existing=True,
     )
+
+    # Загружаем все активные триггеры из БД при старте
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(AutoTrigger).where(AutoTrigger.is_active == True)
+        )
+        for trigger in result.scalars().all():
+            schedule_trigger(trigger)
 
     yield
 

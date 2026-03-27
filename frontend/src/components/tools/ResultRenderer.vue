@@ -107,9 +107,44 @@
     </div>
 
     <!-- Текст -->
-    <div v-else-if="isText" class="text-sm text-gray-800 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap">
-      {{ textContent }}
+    <div v-else-if="isText">
+      <div class="text-sm text-gray-800 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap"
+           :class="isLongText && !textExpanded ? 'line-clamp-6' : ''">
+        {{ textContent }}
+      </div>
+      <div v-if="isLongText" class="flex gap-2 mt-2">
+        <button
+          class="text-xs text-primary-600 hover:underline"
+          @click="textPopup = true"
+        >
+          Читать полностью →
+        </button>
+      </div>
     </div>
+
+    <!-- Попап с полным текстом -->
+    <Teleport to="body">
+      <div v-if="textPopup" class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4" @click.self="textPopup = false">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col" style="max-height: 80vh;">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+            <h3 class="font-semibold text-gray-900 text-sm">Результат</h3>
+            <button class="text-gray-400 hover:text-gray-600" @click="textPopup = false">✕</button>
+          </div>
+          <div class="px-6 py-4 overflow-y-auto flex-1">
+            <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{{ textContent }}</p>
+          </div>
+          <div class="px-6 pb-4 flex justify-end gap-2 shrink-0 border-t border-gray-100 pt-3">
+            <button
+              class="btn-secondary text-sm"
+              @click="copyText"
+            >
+              {{ copied ? '✅ Скопировано' : '📋 Копировать' }}
+            </button>
+            <button class="btn-primary text-sm" @click="textPopup = false">Закрыть</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Объект -->
     <div v-else-if="isObject" class="space-y-0.5">
@@ -268,6 +303,9 @@ const props = defineProps({
 })
 
 const arrayExpanded = ref(false)
+const textExpanded = ref(false)
+const textPopup = ref(false)
+const copied = ref(false)
 
 const parsed = computed(() => {
   if (!props.resultJson) return null
@@ -330,6 +368,18 @@ function metricColor(key) {
   if (k.includes('success') || k.includes('sent') || k.includes('done')) return 'text-green-600'
   return 'text-primary-700'
 }
+const isLongText = computed(() => typeof textContent.value === 'string' && textContent.value.length > 300)
+
+async function copyText() {
+  try {
+    await navigator.clipboard.writeText(textContent.value)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch {
+    /* fallback */
+  }
+}
+
 function itemsLabel(n) {
   if (n % 10 === 1 && n % 100 !== 11) return 'запись'
   if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'записи'
