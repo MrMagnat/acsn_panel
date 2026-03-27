@@ -18,4 +18,5 @@ export const agentsApi = {
   getRunLogs: (agentId) => http.get(`/agents/${agentId}/run-logs`),
   pollRunLog: (logId) => http.get(`/run-logs/${logId}`),
   cancelRunLog: (logId) => http.post(`/run-logs/${logId}/cancel`),
+  deleteRunLog: (logId) => http.delete(`/run-logs/${logId}`),
 }

@@ -80,9 +80,9 @@
 
     <!-- Попап: результат запуска (с polling) -->
     <div v-if="showResult" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="closeResult">
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col" style="max-height: 85vh;">
         <!-- Шапка -->
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div class="flex items-center gap-2">
             <span v-if="runLog?.status === 'running'" class="inline-block w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></span>
             <span v-else-if="runLog?.status === 'success'" class="text-green-500">✅</span>
@@ -94,7 +94,7 @@
         </div>
 
         <!-- Статус -->
-        <div class="px-6 pt-4 pb-1">
+        <div class="px-6 pt-4 pb-1 shrink-0">
           <span class="text-xs font-medium px-2 py-0.5 rounded-full"
             :class="{
               'bg-yellow-100 text-yellow-700': runLog?.status === 'running',
@@ -107,8 +107,8 @@
           <span v-if="runLog?.status === 'running'" class="text-xs text-gray-400 ml-2">обновляется каждые 2 сек...</span>
         </div>
 
-        <!-- Результат -->
-        <div class="px-6 py-4">
+        <!-- Результат — скроллируемая зона -->
+        <div class="px-6 py-4 overflow-y-auto flex-1">
           <ResultRenderer
             v-if="runLog"
             :result-json="runLog.result_json"

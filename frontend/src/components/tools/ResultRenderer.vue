@@ -7,108 +7,303 @@
       <div class="text-sm">{{ errorMessage }}</div>
     </div>
 
-    <!-- Остановлено пользователем -->
+    <!-- Остановлено -->
     <div v-else-if="isCancelled" class="flex items-center gap-2 text-gray-600 bg-gray-50 rounded-lg p-3">
       <span class="text-lg leading-none">⏹</span>
       <span class="text-sm">Процесс остановлен пользователем</span>
     </div>
 
-    <!-- Статус "запущен / в процессе" -->
+    <!-- Выполняется -->
     <div v-else-if="isStarted" class="flex items-center gap-2 text-yellow-700 bg-yellow-50 rounded-lg p-3">
       <span class="inline-block w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></span>
       <span class="text-sm">Задача запущена, ожидаем результат...</span>
     </div>
 
-    <!-- Числовые метрики (объект из чисел) -->
-    <div v-else-if="isMetrics" class="grid grid-cols-2 gap-2">
-      <div
-        v-for="(value, key) in metricsData"
-        :key="key"
-        class="bg-gray-50 rounded-lg p-3 text-center"
-      >
-        <div class="text-2xl font-bold" :class="metricColor(key, value)">{{ value }}</div>
-        <div class="text-xs text-gray-500 mt-0.5">{{ formatKey(key) }}</div>
+    <!-- Числовые метрики -->
+    <div v-else-if="isMetrics" class="space-y-3">
+      <div class="grid grid-cols-2 gap-2">
+        <div
+          v-for="(value, key) in metricsData"
+          :key="key"
+          class="bg-gray-50 rounded-lg p-3 text-center"
+        >
+          <div class="text-2xl font-bold" :class="metricColor(key)">{{ value }}</div>
+          <div class="text-xs text-gray-500 mt-0.5">{{ formatKey(key) }}</div>
+        </div>
+      </div>
+      <!-- Остальные нечисловые поля объекта -->
+      <div v-if="nonMetricEntries.length" class="space-y-0.5">
+        <ValueRow
+          v-for="[k, v] in nonMetricEntries"
+          :key="k"
+          :label="formatKey(k)"
+          :value="v"
+          :depth="0"
+        />
       </div>
     </div>
 
-    <!-- Массив объектов → таблица / карточки -->
-    <div v-else-if="isArray">
-      <!-- Если элементов <= 3, показываем карточками -->
-      <div v-if="parsed.length <= 3" class="space-y-2">
-        <div
-          v-for="(item, i) in parsed"
-          :key="i"
-          class="bg-gray-50 rounded-lg p-3 text-sm"
+    <!-- Массив -->
+    <div v-else-if="isArray" class="space-y-2">
+      <!-- Первый элемент — развёрнуто -->
+      <div class="border border-gray-100 rounded-lg overflow-hidden">
+        <div class="bg-gray-50 px-3 py-1.5 text-xs text-gray-400 font-medium border-b border-gray-100">
+          #1 из {{ parsed.length }}
+        </div>
+        <div class="p-3">
+          <template v-if="isPlainObject(parsed[0])">
+            <ValueRow
+              v-for="[k, v] in Object.entries(parsed[0])"
+              :key="k"
+              :label="formatKey(k)"
+              :value="v"
+              :depth="0"
+            />
+          </template>
+          <span v-else class="text-sm text-gray-800">{{ formatValue(parsed[0]) }}</span>
+        </div>
+      </div>
+
+      <!-- Кнопка показать остальные -->
+      <template v-if="parsed.length > 1">
+        <button
+          v-if="!arrayExpanded"
+          class="w-full text-sm text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg py-2 transition-colors"
+          @click="arrayExpanded = true"
         >
-          <div v-for="(v, k) in item" :key="k" class="flex justify-between gap-2 py-0.5 border-b border-gray-100 last:border-0">
-            <span class="text-gray-500 shrink-0">{{ formatKey(k) }}</span>
-            <span class="font-medium text-gray-800 text-right truncate">{{ formatValue(v) }}</span>
+          Показать ещё +{{ parsed.length - 1 }} {{ itemsLabel(parsed.length - 1) }}
+        </button>
+
+        <template v-else>
+          <div
+            v-for="(item, i) in parsed.slice(1)"
+            :key="i"
+            class="border border-gray-100 rounded-lg overflow-hidden"
+          >
+            <div class="bg-gray-50 px-3 py-1.5 text-xs text-gray-400 font-medium border-b border-gray-100">
+              #{{ i + 2 }}
+            </div>
+            <div class="p-3">
+              <template v-if="isPlainObject(item)">
+                <ValueRow
+                  v-for="[k, v] in Object.entries(item)"
+                  :key="k"
+                  :label="formatKey(k)"
+                  :value="v"
+                  :depth="0"
+                />
+              </template>
+              <span v-else class="text-sm text-gray-800">{{ formatValue(item) }}</span>
+            </div>
           </div>
-        </div>
-      </div>
-      <!-- Больше 3 элементов → компактный список -->
-      <div v-else class="space-y-1 max-h-48 overflow-y-auto">
-        <div
-          v-for="(item, i) in parsed"
-          :key="i"
-          class="flex items-center gap-2 text-sm px-2 py-1.5 rounded hover:bg-gray-50"
-        >
-          <span class="text-gray-400 text-xs w-5 text-right shrink-0">{{ i + 1 }}</span>
-          <span class="text-gray-800 truncate">{{ itemSummary(item) }}</span>
-        </div>
-        <p class="text-xs text-gray-400 text-center pt-1">Всего: {{ parsed.length }}</p>
-      </div>
+          <button
+            class="w-full text-xs text-gray-400 hover:text-gray-600 py-1.5 transition-colors"
+            @click="arrayExpanded = false"
+          >
+            Свернуть ↑
+          </button>
+        </template>
+      </template>
     </div>
 
-    <!-- Текстовый результат -->
+    <!-- Текст -->
     <div v-else-if="isText" class="text-sm text-gray-800 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap">
       {{ textContent }}
     </div>
 
-    <!-- Объект с ключами — таблица key:value -->
-    <div v-else-if="isObject" class="space-y-1">
-      <div
-        v-for="(value, key) in parsed"
-        :key="key"
-        class="flex justify-between gap-3 text-sm py-1.5 px-2 rounded hover:bg-gray-50 border-b border-gray-50 last:border-0"
-      >
-        <span class="text-gray-500 shrink-0 capitalize">{{ formatKey(key) }}</span>
-        <span class="font-medium text-gray-800 text-right truncate max-w-[60%]">
-          <!-- URL → ссылка -->
-          <a v-if="isUrl(value)" :href="value" target="_blank" class="text-primary-600 underline truncate">{{ value }}</a>
-          <!-- Булевое -->
-          <span v-else-if="typeof value === 'boolean'" :class="value ? 'text-green-600' : 'text-red-500'">
-            {{ value ? 'Да' : 'Нет' }}
-          </span>
-          <!-- Обычное значение -->
-          <span v-else>{{ formatValue(value) }}</span>
-        </span>
-      </div>
+    <!-- Объект -->
+    <div v-else-if="isObject" class="space-y-0.5">
+      <ValueRow
+        v-for="[k, v] in Object.entries(parsed)"
+        :key="k"
+        :label="formatKey(k)"
+        :value="v"
+        :depth="0"
+      />
     </div>
 
-    <!-- Fallback: красивый JSON -->
+    <!-- Fallback JSON -->
     <pre v-else class="text-xs bg-gray-50 rounded-lg p-3 overflow-auto max-h-40 text-gray-700">{{ prettyJson }}</pre>
 
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, defineComponent, h, resolveComponent } from 'vue'
 
-const props = defineProps({
-  resultJson: { type: String, default: null },
-  status: { type: String, default: 'running' }, // running / success / error
+// ── ValueRow — рекурсивный рендер одной строки ─────────────────────────────
+const ValueRow = defineComponent({
+  name: 'ValueRow',
+  props: {
+    label: String,
+    value: { default: null },
+    depth: { type: Number, default: 0 },
+  },
+  setup(props) {
+    const expanded = ref(true) // объекты/массивы раскрыты по умолчанию
+    const arrayExpanded = ref(false)
+
+    const isObj = computed(() => props.value && typeof props.value === 'object' && !Array.isArray(props.value))
+    const isArr = computed(() => Array.isArray(props.value))
+    const isPrim = computed(() => !isObj.value && !isArr.value)
+
+    function fmtPrim(v) {
+      if (v === null || v === undefined) return '—'
+      if (typeof v === 'boolean') return v ? 'Да' : 'Нет'
+      return String(v)
+    }
+    function isUrl(v) {
+      return typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://'))
+    }
+    function metricColor(key) {
+      const k = String(key).toLowerCase()
+      if (k.includes('error') || k.includes('fail')) return 'text-red-600'
+      if (k.includes('success') || k.includes('sent') || k.includes('done') || k.includes('ok')) return 'text-green-600'
+      return 'text-primary-700'
+    }
+    function formatKey(key) {
+      return String(key).replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')
+    }
+
+    const indent = computed(() => props.depth * 12)
+
+    return () => {
+      const VR = resolveComponent('ValueRow')
+      const pad = `${indent.value}px`
+
+      // Примитив
+      if (isPrim.value) {
+        return h('div', {
+          class: 'flex justify-between gap-3 text-sm py-1 px-2 rounded hover:bg-gray-50 border-b border-gray-50 last:border-0',
+          style: { paddingLeft: pad },
+        }, [
+          h('span', { class: 'text-gray-500 shrink-0' }, props.label),
+          isUrl(props.value)
+            ? h('a', { href: props.value, target: '_blank', class: 'text-primary-600 underline truncate max-w-[60%] text-right' }, props.value)
+            : h('span', { class: 'font-medium text-gray-800 text-right truncate max-w-[60%]' }, fmtPrim(props.value)),
+        ])
+      }
+
+      // Объект
+      if (isObj.value) {
+        const entries = Object.entries(props.value)
+        return h('div', { style: { paddingLeft: pad } }, [
+          // Заголовок секции
+          h('div', {
+            class: 'flex items-center gap-1 text-sm py-1 px-2 cursor-pointer select-none hover:bg-gray-50 rounded',
+            onClick: () => { expanded.value = !expanded.value },
+          }, [
+            h('span', { class: 'text-gray-400 text-xs w-3' }, expanded.value ? '▾' : '▸'),
+            h('span', { class: 'text-gray-600 font-medium' }, props.label),
+            h('span', { class: 'text-xs text-gray-400 ml-1' }, `{${entries.length}}`),
+          ]),
+          expanded.value
+            ? h('div', { class: 'ml-2 border-l-2 border-gray-100 pl-2' },
+                entries.map(([k, v]) =>
+                  h(VR, { key: k, label: formatKey(k), value: v, depth: 0 })
+                )
+              )
+            : null,
+        ])
+      }
+
+      // Массив
+      if (isArr.value) {
+        const arr = props.value
+        return h('div', { style: { paddingLeft: pad } }, [
+          h('div', {
+            class: 'flex items-center gap-1 text-sm py-1 px-2 cursor-pointer select-none hover:bg-gray-50 rounded',
+            onClick: () => { expanded.value = !expanded.value },
+          }, [
+            h('span', { class: 'text-gray-400 text-xs w-3' }, expanded.value ? '▾' : '▸'),
+            h('span', { class: 'text-gray-600 font-medium' }, props.label),
+            h('span', { class: 'text-xs text-gray-400 ml-1' }, `[${arr.length}]`),
+          ]),
+          expanded.value
+            ? h('div', { class: 'ml-2 border-l-2 border-gray-100 pl-2 space-y-1' }, [
+                // Первый элемент
+                h('div', { class: 'text-xs text-gray-400 pt-1 pb-0.5 font-medium' }, '#1'),
+                typeof arr[0] === 'object' && arr[0] !== null
+                  ? h('div', {}, Object.entries(arr[0]).map(([k, v]) => h(VR, { key: k, label: formatKey(k), value: v, depth: 0 })))
+                  : h('span', { class: 'text-sm text-gray-800' }, fmtPrim(arr[0])),
+
+                // Остальные
+                arr.length > 1
+                  ? [
+                      !arrayExpanded.value
+                        ? h('button', {
+                            class: 'text-xs text-primary-600 bg-primary-50 hover:bg-primary-100 rounded px-2 py-1 mt-1 transition-colors',
+                            onClick: (e) => { e.stopPropagation(); arrayExpanded.value = true },
+                          }, `Показать ещё +${arr.length - 1}`)
+                        : [
+                            ...arr.slice(1).map((item, i) =>
+                              h('div', { key: i }, [
+                                h('div', { class: 'text-xs text-gray-400 pt-2 pb-0.5 font-medium' }, `#${i + 2}`),
+                                typeof item === 'object' && item !== null
+                                  ? h('div', {}, Object.entries(item).map(([k, v]) => h(VR, { key: k, label: formatKey(k), value: v, depth: 0 })))
+                                  : h('span', { class: 'text-sm text-gray-800' }, fmtPrim(item)),
+                              ])
+                            ),
+                            h('button', {
+                              class: 'text-xs text-gray-400 hover:text-gray-600 mt-1 px-2 py-1 transition-colors',
+                              onClick: (e) => { e.stopPropagation(); arrayExpanded.value = false },
+                            }, 'Свернуть ↑'),
+                          ],
+                    ]
+                  : null,
+              ])
+            : null,
+        ])
+      }
+
+      return null
+    }
+  },
 })
 
-// Парсим JSON
+// ── Основной компонент ──────────────────────────────────────────────────────
+const props = defineProps({
+  resultJson: { type: String, default: null },
+  status: { type: String, default: 'running' },
+})
+
+const arrayExpanded = ref(false)
+
 const parsed = computed(() => {
   if (!props.resultJson) return null
   try { return JSON.parse(props.resultJson) } catch { return props.resultJson }
 })
 
-const isError = computed(() => props.status === 'error')
+const isError     = computed(() => props.status === 'error')
 const isCancelled = computed(() => props.status === 'cancelled')
-const isStarted = computed(() => props.status === 'running')
+const isStarted   = computed(() => props.status === 'running')
+const isArray     = computed(() => Array.isArray(parsed.value) && parsed.value.length > 0)
+const isObject    = computed(() => parsed.value && typeof parsed.value === 'object' && !Array.isArray(parsed.value))
+const isText      = computed(() => typeof parsed.value === 'string' && parsed.value.length > 0)
+
+const metricsData = computed(() => {
+  if (!isObject.value) return {}
+  const entries = Object.entries(parsed.value)
+  const num = entries.filter(([, v]) => typeof v === 'number' || (typeof v === 'string' && !isNaN(v) && v !== ''))
+  if (num.length >= 2 && num.length >= entries.length * 0.5) return Object.fromEntries(num)
+  return {}
+})
+const isMetrics = computed(() => Object.keys(metricsData.value).length >= 2)
+
+const nonMetricEntries = computed(() => {
+  if (!isMetrics.value || !isObject.value) return []
+  const metricKeys = new Set(Object.keys(metricsData.value))
+  return Object.entries(parsed.value).filter(([k]) => !metricKeys.has(k))
+})
+
+const textContent = computed(() => {
+  if (isText.value) return parsed.value
+  if (isObject.value) {
+    const txt = parsed.value?.text || parsed.value?.content || parsed.value?.message
+    return typeof txt === 'string' ? txt : null
+  }
+  return null
+})
 
 const errorMessage = computed(() => {
   if (!parsed.value) return 'Неизвестная ошибка'
@@ -116,56 +311,28 @@ const errorMessage = computed(() => {
   return parsed.value?.error || parsed.value?.message || JSON.stringify(parsed.value)
 })
 
-// Определяем тип данных
-const isArray   = computed(() => Array.isArray(parsed.value) && parsed.value.length > 0)
-const isObject  = computed(() => parsed.value && typeof parsed.value === 'object' && !Array.isArray(parsed.value))
-const isText    = computed(() => typeof parsed.value === 'string' && parsed.value.length > 0)
-
-// Метрики: объект где большинство значений — числа и нет вложенных объектов
-const metricsData = computed(() => {
-  if (!isObject.value) return {}
-  const entries = Object.entries(parsed.value)
-  const numericEntries = entries.filter(([, v]) => typeof v === 'number' || (typeof v === 'string' && !isNaN(v) && v !== ''))
-  if (numericEntries.length >= 2 && numericEntries.length >= entries.length * 0.6) {
-    return Object.fromEntries(numericEntries)
-  }
-  return {}
-})
-const isMetrics = computed(() => Object.keys(metricsData.value).length >= 2)
-
-const textContent = computed(() => {
-  if (!isObject.value) return parsed.value
-  const txt = parsed.value?.text || parsed.value?.content || parsed.value?.message || parsed.value?.result
-  return typeof txt === 'string' ? txt : null
-})
-
 const prettyJson = computed(() => JSON.stringify(parsed.value, null, 2))
 
-// Утилиты
 function formatKey(key) {
   return String(key).replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')
 }
-
 function formatValue(v) {
   if (v === null || v === undefined) return '—'
   if (typeof v === 'object') return JSON.stringify(v)
   return String(v)
 }
-
-function isUrl(v) {
-  return typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://'))
+function isPlainObject(v) {
+  return v && typeof v === 'object' && !Array.isArray(v)
 }
-
-function metricColor(key, value) {
-  const k = key.toLowerCase()
-  if (k.includes('error') || k.includes('fail') || k.includes('failed')) return 'text-red-600'
+function metricColor(key) {
+  const k = String(key).toLowerCase()
+  if (k.includes('error') || k.includes('fail')) return 'text-red-600'
   if (k.includes('success') || k.includes('sent') || k.includes('done')) return 'text-green-600'
   return 'text-primary-700'
 }
-
-function itemSummary(item) {
-  if (typeof item !== 'object') return String(item)
-  const val = item.name || item.title || item.text || item.message || item.username || item.email
-  return val ? String(val) : Object.values(item).slice(0, 2).join(' · ')
+function itemsLabel(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return 'запись'
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'записи'
+  return 'записей'
 }
 </script>

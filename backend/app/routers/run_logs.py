@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 
 from ..core.db import get_db
 from ..core.deps import get_current_user
@@ -103,6 +103,22 @@ async def cancel_run_log(
     return log
 
 
+@router.delete("/run-logs/{log_id}", status_code=204)
+async def delete_run_log(
+    log_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Удалить запись из истории запусков."""
+    log = (await db.execute(
+        select(ToolRunLog).where(ToolRunLog.id == log_id, ToolRunLog.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail="Лог не найден")
+    await db.delete(log)
+    await db.commit()
+
+
 @router.post("/webhooks/tool-callback", status_code=200)
 async def tool_callback(
     payload: ToolCallbackPayload,
@@ -114,7 +130,12 @@ async def tool_callback(
     Тело: { "instanceId": "...", "status": "success", "data": {...} }
     """
     log = (await db.execute(
-        select(ToolRunLog).where(ToolRunLog.instance_id == payload.instanceId)
+        select(ToolRunLog).where(
+            or_(
+                ToolRunLog.instance_id == payload.instanceId,
+                ToolRunLog.id == payload.instanceId,
+            )
+        )
     )).scalar_one_or_none()
 
     if not log:

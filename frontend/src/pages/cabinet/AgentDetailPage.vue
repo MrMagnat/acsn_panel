@@ -68,18 +68,17 @@
           <div
             v-for="log in runLogs"
             :key="log.id"
-            class="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 cursor-pointer"
-            @click="openLogDetail(log)"
+            class="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200"
           >
             <!-- Статус иконка -->
-            <div class="shrink-0 mt-0.5">
+            <div class="shrink-0 mt-0.5 cursor-pointer" @click="openLogDetail(log)">
               <span v-if="log.status === 'running'" class="inline-block w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></span>
               <span v-else-if="log.status === 'success'" class="text-green-500 text-base leading-none">✅</span>
               <span v-else-if="log.status === 'cancelled'" class="text-gray-400 text-base leading-none">⏹</span>
               <span v-else class="text-red-500 text-base leading-none">❌</span>
             </div>
             <!-- Инфо -->
-            <div class="flex-1 min-w-0">
+            <div class="flex-1 min-w-0 cursor-pointer" @click="openLogDetail(log)">
               <div class="flex items-center gap-2">
                 <span class="font-medium text-sm text-gray-800">{{ log.tool_name }}</span>
                 <span class="text-xs px-1.5 py-0.5 rounded-full"
@@ -97,6 +96,12 @@
                 {{ summarizeResult(log.result_json) }}
               </div>
             </div>
+            <!-- Кнопка удаления -->
+            <button
+              class="shrink-0 text-gray-300 hover:text-red-400 transition-colors mt-0.5"
+              title="Удалить"
+              @click.stop="deleteLog(log.id)"
+            >🗑</button>
           </div>
         </div>
       </div>
@@ -128,8 +133,9 @@
     <!-- Попап: детальный результат запуска -->
     <Teleport to="body">
       <div v-if="selectedLog" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="selectedLog = null">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col" style="max-height: 85vh;">
+          <!-- Заголовок -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
             <div class="flex items-center gap-2">
               <span v-if="selectedLog.status === 'success'" class="text-green-500">✅</span>
               <span v-else-if="selectedLog.status === 'error'" class="text-red-500">❌</span>
@@ -138,7 +144,8 @@
             </div>
             <button class="text-gray-400 hover:text-gray-600" @click="selectedLog = null">✕</button>
           </div>
-          <div class="px-6 py-4">
+          <!-- Скроллируемый контент -->
+          <div class="px-6 py-4 overflow-y-auto flex-1">
             <div class="flex gap-4 text-xs text-gray-400 mb-4">
               <span>{{ formatDate(selectedLog.started_at) }}</span>
               <span>{{ { manual: '▶ вручную', chat: '💬 чат', auto: '🕐 авто' }[selectedLog.trigger_type] }}</span>
@@ -223,6 +230,17 @@ async function loadRunLogs() {
 }
 
 function openLogDetail(log) { selectedLog.value = log }
+
+async function deleteLog(logId) {
+  if (!confirm('Удалить запись из истории?')) return
+  try {
+    await agentsApi.deleteRunLog(logId)
+    runLogs.value = runLogs.value.filter(l => l.id !== logId)
+    if (selectedLog.value?.id === logId) selectedLog.value = null
+  } catch {
+    alert('Не удалось удалить запись')
+  }
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return ''

@@ -295,11 +295,16 @@ async def run_tool_manually(agent_id: str, user_id: str, tool_id: str, db: Async
     db.add(run_log)
     await db.flush()  # получаем run_log.id
 
+    # По умолчанию instance_id = log_id, чтобы n8n мог вернуть его обратно
+    run_log.instance_id = str(run_log.id)
+
     payload = {
         "fields": agent_tool.field_values or {},
         "args": {},
         "agent_id": agent_id,
         "user_id": user_id,
+        "log_id": str(run_log.id),
+        "instance_id": str(run_log.id),  # n8n должен вернуть это в callback
     }
 
     try:
