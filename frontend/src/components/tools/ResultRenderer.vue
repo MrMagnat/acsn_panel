@@ -138,7 +138,7 @@
 
   </div>
 
-  <!-- Попап с полным текстом -->
+  <!-- Попап с полным текстом (isText) -->
   <Teleport to="body">
     <div v-if="textPopup" class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4" @click.self="textPopup = false">
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col" style="max-height: 80vh;">
@@ -150,10 +150,27 @@
           <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{{ textContent }}</p>
         </div>
         <div class="px-6 pb-4 flex justify-end gap-2 shrink-0 border-t border-gray-100 pt-3">
-          <button class="btn-secondary text-sm" @click="copyText">
-            {{ copied ? '✅ Скопировано' : '📋 Копировать' }}
-          </button>
+          <button class="btn-secondary text-sm" @click="copyText">{{ copied ? '✅ Скопировано' : '📋 Копировать' }}</button>
           <button class="btn-primary text-sm" @click="textPopup = false">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Попап для длинных строк внутри объектов/массивов -->
+  <Teleport to="body">
+    <div v-if="longTextPopup" class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4" @click.self="longTextPopup = false">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col" style="max-height: 80vh;">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          <h3 class="font-semibold text-gray-900 text-sm">{{ longTextLabel }}</h3>
+          <button class="text-gray-400 hover:text-gray-600" @click="longTextPopup = false">✕</button>
+        </div>
+        <div class="px-6 py-4 overflow-y-auto flex-1">
+          <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{{ longTextValue }}</p>
+        </div>
+        <div class="px-6 pb-4 flex justify-end gap-2 shrink-0 border-t border-gray-100 pt-3">
+          <button class="btn-secondary text-sm" @click="copyLongText">{{ longTextCopied ? '✅ Скопировано' : '📋 Копировать' }}</button>
+          <button class="btn-primary text-sm" @click="longTextPopup = false">Закрыть</button>
         </div>
       </div>
     </div>
@@ -162,6 +179,27 @@
 
 <script setup>
 import { computed, ref, defineComponent, h, resolveComponent } from 'vue'
+
+// Глобальный попап для длинных строк — управляется из ValueRow
+const longTextLabel = ref('')
+const longTextValue = ref('')
+const longTextPopup = ref(false)
+const longTextCopied = ref(false)
+
+function openLongText(label, value) {
+  longTextLabel.value = label
+  longTextValue.value = value
+  longTextPopup.value = true
+  longTextCopied.value = false
+}
+
+async function copyLongText() {
+  try {
+    await navigator.clipboard.writeText(longTextValue.value)
+    longTextCopied.value = true
+    setTimeout(() => { longTextCopied.value = false }, 2000)
+  } catch {}
+}
 
 // ── ValueRow — рекурсивный рендер одной строки ─────────────────────────────
 const ValueRow = defineComponent({
@@ -205,14 +243,26 @@ const ValueRow = defineComponent({
 
       // Примитив
       if (isPrim.value) {
+        const strVal = fmtPrim(props.value)
+        const isLong = typeof props.value === 'string' && props.value.length > 150
         return h('div', {
-          class: 'flex justify-between gap-3 text-sm py-1 px-2 rounded hover:bg-gray-50 border-b border-gray-50 last:border-0',
+          class: 'text-sm py-1.5 px-2 rounded hover:bg-gray-50 border-b border-gray-50 last:border-0',
           style: { paddingLeft: pad },
         }, [
-          h('span', { class: 'text-gray-500 shrink-0' }, props.label),
-          isUrl(props.value)
-            ? h('a', { href: props.value, target: '_blank', class: 'text-primary-600 underline truncate max-w-[60%] text-right' }, props.value)
-            : h('span', { class: 'font-medium text-gray-800 text-right truncate max-w-[60%]' }, fmtPrim(props.value)),
+          h('div', { class: 'flex justify-between gap-3 items-start' }, [
+            h('span', { class: 'text-gray-500 shrink-0' }, props.label),
+            isUrl(props.value)
+              ? h('a', { href: props.value, target: '_blank', class: 'text-primary-600 underline truncate max-w-[60%] text-right' }, props.value)
+              : isLong
+                ? h('div', { class: 'flex flex-col items-end gap-1 max-w-[65%]' }, [
+                    h('span', { class: 'font-medium text-gray-800 text-right text-xs line-clamp-2' }, strVal.slice(0, 120) + '...'),
+                    h('button', {
+                      class: 'text-xs text-primary-600 hover:underline whitespace-nowrap',
+                      onClick: () => openLongText(props.label, props.value),
+                    }, '📖 Читать полностью'),
+                  ])
+                : h('span', { class: 'font-medium text-gray-800 text-right truncate max-w-[60%]' }, strVal),
+          ]),
         ])
       }
 
