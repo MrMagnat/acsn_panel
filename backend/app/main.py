@@ -46,7 +46,14 @@ app = FastAPI(
 # CORS — разрешаем запросы от фронтенда
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://85.193.84.93",
+        "https://85.193.84.93",
+        "https://businesspanel.ru",
+        "https://www.businesspanel.ru",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
