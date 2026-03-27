@@ -363,13 +363,29 @@ async def _call_llm(
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
 
-    headers = {}
+    headers = {"Content-Type": "application/json"}
     if llm_token:
         headers["Authorization"] = f"Bearer {llm_token}"
 
+    # OpenRouter требует HTTP-Referer и X-Title для идентификации приложения
+    if "openrouter.ai" in llm_url:
+        headers["HTTP-Referer"] = "https://businesspanel.ru"
+        headers["X-Title"] = "ASCN AI Platform"
+
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(llm_url, json=payload, headers=headers)
-        response.raise_for_status()
+        if not response.is_success:
+            # Показываем тело ответа для диагностики
+            try:
+                err_body = response.json()
+                err_msg = err_body.get("error", {}).get("message", "") or str(err_body)
+            except Exception:
+                err_msg = response.text[:300]
+            raise httpx.HTTPStatusError(
+                f"{response.status_code}: {err_msg}",
+                request=response.request,
+                response=response,
+            )
         data = response.json()
 
     # Парсим ответ в единый формат
