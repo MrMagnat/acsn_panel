@@ -122,30 +122,6 @@
       </div>
     </div>
 
-    <!-- Попап с полным текстом -->
-    <Teleport to="body">
-      <div v-if="textPopup" class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4" @click.self="textPopup = false">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col" style="max-height: 80vh;">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-            <h3 class="font-semibold text-gray-900 text-sm">Результат</h3>
-            <button class="text-gray-400 hover:text-gray-600" @click="textPopup = false">✕</button>
-          </div>
-          <div class="px-6 py-4 overflow-y-auto flex-1">
-            <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{{ textContent }}</p>
-          </div>
-          <div class="px-6 pb-4 flex justify-end gap-2 shrink-0 border-t border-gray-100 pt-3">
-            <button
-              class="btn-secondary text-sm"
-              @click="copyText"
-            >
-              {{ copied ? '✅ Скопировано' : '📋 Копировать' }}
-            </button>
-            <button class="btn-primary text-sm" @click="textPopup = false">Закрыть</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
     <!-- Объект -->
     <div v-else-if="isObject" class="space-y-0.5">
       <ValueRow
@@ -161,6 +137,27 @@
     <pre v-else class="text-xs bg-gray-50 rounded-lg p-3 overflow-auto max-h-40 text-gray-700">{{ prettyJson }}</pre>
 
   </div>
+
+  <!-- Попап с полным текстом -->
+  <Teleport to="body">
+    <div v-if="textPopup" class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4" @click.self="textPopup = false">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col" style="max-height: 80vh;">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          <h3 class="font-semibold text-gray-900 text-sm">Результат</h3>
+          <button class="text-gray-400 hover:text-gray-600" @click="textPopup = false">✕</button>
+        </div>
+        <div class="px-6 py-4 overflow-y-auto flex-1">
+          <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{{ textContent }}</p>
+        </div>
+        <div class="px-6 pb-4 flex justify-end gap-2 shrink-0 border-t border-gray-100 pt-3">
+          <button class="btn-secondary text-sm" @click="copyText">
+            {{ copied ? '✅ Скопировано' : '📋 Копировать' }}
+          </button>
+          <button class="btn-primary text-sm" @click="textPopup = false">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
