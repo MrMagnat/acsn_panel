@@ -195,7 +195,7 @@ function openLongText(label, value) {
 
 async function copyLongText() {
   try {
-    await navigator.clipboard.writeText(longTextValue.value)
+    await copyToClipboard(longTextValue.value)
     longTextCopied.value = true
     setTimeout(() => { longTextCopied.value = false }, 2000)
   } catch {}
@@ -417,14 +417,28 @@ function metricColor(key) {
 }
 const isLongText = computed(() => typeof textContent.value === 'string' && textContent.value.length > 300)
 
+function copyToClipboard(text) {
+  // Работает и на HTTP (не только HTTPS)
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text)
+  }
+  // Fallback для HTTP
+  const el = document.createElement('textarea')
+  el.value = text
+  el.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+  document.body.appendChild(el)
+  el.select()
+  document.execCommand('copy')
+  document.body.removeChild(el)
+  return Promise.resolve()
+}
+
 async function copyText() {
   try {
-    await navigator.clipboard.writeText(textContent.value)
+    await copyToClipboard(textContent.value)
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
-  } catch {
-    /* fallback */
-  }
+  } catch { /* ignore */ }
 }
 
 function itemsLabel(n) {

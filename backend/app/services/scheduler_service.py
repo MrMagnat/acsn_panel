@@ -16,6 +16,7 @@ from ..models.agent_tool import AgentTool
 from ..models.tool import Tool
 from ..models.subscription import Subscription
 from ..models.energy_transaction import EnergyTransaction
+from ..models.tool_run_log import ToolRunLog
 from ..core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -149,6 +150,19 @@ async def execute_trigger(trigger_id: str, agent_id: str, tool_id: str) -> None:
                 tool_name=agent_tool.tool.name,
             ))
 
+            # Создаём лог запуска
+            run_log = ToolRunLog(
+                agent_id=agent_id,
+                user_id=agent.user_id,
+                tool_id=tool_id,
+                tool_name=agent_tool.tool.name,
+                trigger_type="auto",
+                status="running",
+            )
+            db.add(run_log)
+            await db.flush()  # получаем run_log.id
+            run_log.instance_id = str(run_log.id)
+
             # Вызываем webhook
             payload = {
                 "fields": agent_tool.field_values,
@@ -156,14 +170,37 @@ async def execute_trigger(trigger_id: str, agent_id: str, tool_id: str) -> None:
                 "agent_id": agent_id,
                 "user_id": agent.user_id,
                 "trigger_id": trigger_id,
+                "log_id": str(run_log.id),
+                "instance_id": str(run_log.id),
             }
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(agent_tool.tool.webhook_url, json=payload)
-                response.raise_for_status()
+            import json as _json
+            from datetime import datetime, timezone
+
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(agent_tool.tool.webhook_url, json=payload)
+                    response.raise_for_status()
+                    webhook_data = response.json()
+
+                # Если вернулся instanceId — результат придёт через callback
+                instance_id = webhook_data.get("instanceId") or webhook_data.get("instance_id")
+                if instance_id:
+                    run_log.instance_id = instance_id
+                    # status остаётся "running"
+                else:
+                    run_log.status = "success"
+                    run_log.result_json = _json.dumps(webhook_data, ensure_ascii=False)
+                    run_log.finished_at = datetime.now(timezone.utc)
+
+            except Exception as webhook_err:
+                run_log.status = "error"
+                run_log.result_json = _json.dumps({"error": str(webhook_err)}, ensure_ascii=False)
+                run_log.finished_at = datetime.now(timezone.utc)
+                logger.error(f"Триггер {trigger_id}: ошибка webhook: {webhook_err}")
 
             await db.commit()
-            logger.info(f"Триггер {trigger_id} выполнен успешно")
+            logger.info(f"Триггер {trigger_id} выполнен, лог: {run_log.id}")
 
         except Exception as e:
             await db.rollback()
