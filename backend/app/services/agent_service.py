@@ -141,8 +141,15 @@ async def update_agent(agent_id: str, user_id: str, data: AgentUpdate, db: Async
 
 
 async def delete_agent(agent_id: str, user_id: str, db: AsyncSession) -> None:
-    """Удаляем агента пользователя."""
+    """Удаляем агента пользователя и снимаем его триггеры с планировщика."""
+    from ..services.scheduler_service import unschedule_trigger
+
     agent = await get_agent_by_id(agent_id, user_id, db)
+
+    # Снимаем все триггеры агента с планировщика (до удаления из БД)
+    for trigger in agent.auto_triggers:
+        unschedule_trigger(trigger.id)
+
     await db.delete(agent)
 
 
