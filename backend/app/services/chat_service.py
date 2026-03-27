@@ -369,7 +369,7 @@ async def _call_llm(
 
     # OpenRouter требует HTTP-Referer и X-Title для идентификации приложения
     if "openrouter.ai" in llm_url:
-        headers["HTTP-Referer"] = "https://businesspanel.ru"
+        headers["HTTP-Referer"] = "http://85.193.84.93"
         headers["X-Title"] = "ASCN AI Platform"
 
     async with httpx.AsyncClient(timeout=60.0) as client:
