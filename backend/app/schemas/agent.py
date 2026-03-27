@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from .tool import ToolResponse
+from .trigger import TriggerResponse
 
 
 class AgentToolResponse(BaseModel):
@@ -46,6 +47,7 @@ class AgentResponse(BaseModel):
     energy_per_chat: int
     created_at: datetime
     agent_tools: list[AgentToolResponse] = []
+    auto_triggers: list[TriggerResponse] = []
 
     model_config = {"from_attributes": True}
 

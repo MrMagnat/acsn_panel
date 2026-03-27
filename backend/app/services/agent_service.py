@@ -10,6 +10,7 @@ from ..models.subscription import Subscription
 from ..models.template_agent import TemplateAgent, TemplateAgentTool
 from ..models.energy_transaction import EnergyTransaction
 from ..models.tool_run_log import ToolRunLog
+from ..models.trigger import AutoTrigger
 from ..schemas.agent import AgentCreate, AgentUpdate, UpdateToolFields
 
 
@@ -31,7 +32,7 @@ async def get_agent_by_id(agent_id: str, user_id: str, db: AsyncSession) -> User
         .where(UserAgent.id == agent_id, UserAgent.user_id == user_id)
         .options(
             selectinload(UserAgent.agent_tools).selectinload(AgentTool.tool).selectinload(Tool.fields),
-            selectinload(UserAgent.auto_triggers),
+            selectinload(UserAgent.auto_triggers).selectinload(AutoTrigger.tool),
         )
     )
     agent = result.scalar_one_or_none()
