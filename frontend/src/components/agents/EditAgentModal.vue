@@ -20,25 +20,43 @@
           <label class="label">Языковая модель</label>
           <select v-model="form.llm_model" class="input text-sm">
             <option value="">— Выберите модель —</option>
+            <optgroup label="🆓 Бесплатные">
+              <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (бесплатно)</option>
+              <option value="deepseek/deepseek-r1:free">DeepSeek R1 (бесплатно)</option>
+              <option value="deepseek/deepseek-chat-v3-0324:free">DeepSeek V3 (бесплатно)</option>
+              <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (бесплатно)</option>
+              <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B (бесплатно)</option>
+              <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (бесплатно)</option>
+              <option value="qwen/qwen-2.5-72b-instruct:free">Qwen 2.5 72B (бесплатно)</option>
+            </optgroup>
             <optgroup label="OpenAI">
               <option value="openai/gpt-4o">GPT-4o</option>
               <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-              <option value="openai/gpt-4-turbo">GPT-4 Turbo</option>
-              <option value="openai/o1-mini">o1-mini</option>
+              <option value="openai/gpt-4.5-preview">GPT-4.5 Preview</option>
+              <option value="openai/o3-mini">o3-mini</option>
+              <option value="openai/o1">o1</option>
             </optgroup>
             <optgroup label="Anthropic">
+              <option value="anthropic/claude-3-7-sonnet">Claude 3.7 Sonnet</option>
               <option value="anthropic/claude-3-5-sonnet">Claude 3.5 Sonnet</option>
               <option value="anthropic/claude-3-5-haiku">Claude 3.5 Haiku</option>
               <option value="anthropic/claude-3-opus">Claude 3 Opus</option>
             </optgroup>
             <optgroup label="Google">
               <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+              <option value="google/gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro</option>
+              <option value="google/gemini-flash-1.5">Gemini 1.5 Flash</option>
               <option value="google/gemini-pro-1.5">Gemini 1.5 Pro</option>
+            </optgroup>
+            <optgroup label="DeepSeek">
+              <option value="deepseek/deepseek-r1">DeepSeek R1</option>
+              <option value="deepseek/deepseek-chat-v3-0324">DeepSeek V3</option>
             </optgroup>
             <optgroup label="Meta / Open Source">
               <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
               <option value="mistralai/mistral-large">Mistral Large</option>
-              <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
+              <option value="mistralai/mistral-small-3.1-24b-instruct">Mistral Small 3.1</option>
+              <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B</option>
             </optgroup>
           </select>
           <p class="text-xs text-gray-400 mt-1">
@@ -61,8 +79,18 @@
         </div>
 
         <div>
-          <label class="label">Системный промпт</label>
-          <textarea v-model="form.prompt" class="input resize-none h-24" placeholder="Ты — полезный ассистент..."></textarea>
+          <div class="flex items-center justify-between mb-1">
+            <label class="label mb-0">Системный промпт</label>
+            <button
+              v-if="!form.prompt"
+              type="button"
+              class="text-xs text-primary-600 hover:underline"
+              @click="form.prompt = DEFAULT_PROMPT"
+            >
+              ✦ Вставить базовый
+            </button>
+          </div>
+          <textarea v-model="form.prompt" class="input resize-none h-32" :placeholder="DEFAULT_PROMPT"></textarea>
         </div>
         <div class="flex items-center gap-3">
           <label class="label mb-0">Активен</label>
@@ -93,6 +121,14 @@
 import { ref } from 'vue'
 import { useAgentsStore } from '@/stores/agents'
 import { useToastStore } from '@/stores/toast'
+
+const DEFAULT_PROMPT = `Ты — умный и полезный ИИ-ассистент. Отвечай на русском языке, если пользователь пишет по-русски.
+
+Твои принципы:
+- Давай чёткие, конкретные и полезные ответы
+- Если есть инструменты — используй их когда это уместно
+- Будь вежлив и профессионален
+- Если не знаешь ответа — скажи об этом честно`
 
 const props = defineProps({ agent: { type: Object, required: true } })
 const emit = defineEmits(['close', 'saved', 'deleted'])
