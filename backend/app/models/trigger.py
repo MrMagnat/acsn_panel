@@ -10,6 +10,7 @@ class AutoTrigger(Base):
     agent_id: Mapped[str] = mapped_column(String, ForeignKey("user_agents.id", ondelete="CASCADE"), nullable=False)
     tool_id: Mapped[str] = mapped_column(String, ForeignKey("tools.id", ondelete="CASCADE"), nullable=False)
     cron_expr: Mapped[str] = mapped_column(String(100), nullable=False)
+    timezone: Mapped[str] = mapped_column(String(100), nullable=False, default="UTC")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     agent: Mapped["UserAgent"] = relationship("UserAgent", back_populates="auto_triggers")

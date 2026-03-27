@@ -10,6 +10,8 @@
         <span class="font-medium text-gray-800">{{ getToolName(trigger.tool_id) }}</span>
         <span class="text-gray-400 mx-2">·</span>
         <span class="text-gray-500 text-xs">{{ cronToLabel(trigger.cron_expr) }}</span>
+        <span class="text-gray-400 mx-1">·</span>
+        <span class="text-gray-400 text-xs">{{ tzShort(trigger.timezone) }}</span>
         <div v-if="!isToolConfigured(trigger.tool_id)" class="text-xs text-orange-500 mt-0.5">
           ⚠ Инструмент не настроен — автозапуск не выполнится
         </div>
@@ -46,6 +48,49 @@
         <p v-else-if="selectedToolNotConfigured" class="text-xs text-red-500 mt-1">
           Настройте инструмент перед созданием автозапуска
         </p>
+      </div>
+
+      <!-- Часовой пояс -->
+      <div>
+        <label class="label text-xs">Часовой пояс</label>
+        <select v-model="form.timezone" class="input text-sm">
+          <optgroup label="Россия">
+            <option value="Europe/Kaliningrad">Калининград (UTC+2)</option>
+            <option value="Europe/Moscow">Москва, Санкт-Петербург (UTC+3)</option>
+            <option value="Europe/Samara">Самара, Ижевск (UTC+4)</option>
+            <option value="Asia/Yekaterinburg">Екатеринбург (UTC+5)</option>
+            <option value="Asia/Omsk">Омск (UTC+6)</option>
+            <option value="Asia/Krasnoyarsk">Красноярск (UTC+7)</option>
+            <option value="Asia/Irkutsk">Иркутск (UTC+8)</option>
+            <option value="Asia/Yakutsk">Якутск (UTC+9)</option>
+            <option value="Asia/Vladivostok">Владивосток (UTC+10)</option>
+            <option value="Asia/Magadan">Магадан (UTC+11)</option>
+            <option value="Asia/Kamchatka">Камчатка (UTC+12)</option>
+          </optgroup>
+          <optgroup label="СНГ">
+            <option value="Europe/Kiev">Киев (UTC+2/3)</option>
+            <option value="Europe/Minsk">Минск (UTC+3)</option>
+            <option value="Asia/Almaty">Алматы (UTC+5)</option>
+            <option value="Asia/Tashkent">Ташкент (UTC+5)</option>
+            <option value="Asia/Baku">Баку (UTC+4)</option>
+            <option value="Asia/Tbilisi">Тбилиси (UTC+4)</option>
+          </optgroup>
+          <optgroup label="Европа">
+            <option value="Europe/London">Лондон (UTC+0/1)</option>
+            <option value="Europe/Paris">Париж, Берлин (UTC+1/2)</option>
+            <option value="Europe/Helsinki">Хельсинки (UTC+2/3)</option>
+          </optgroup>
+          <optgroup label="США">
+            <option value="America/New_York">Нью-Йорк (UTC-5/4)</option>
+            <option value="America/Chicago">Чикаго (UTC-6/5)</option>
+            <option value="America/Los_Angeles">Лос-Анджелес (UTC-8/7)</option>
+          </optgroup>
+          <optgroup label="Другие">
+            <option value="UTC">UTC</option>
+            <option value="Asia/Dubai">Дубай (UTC+4)</option>
+            <option value="Asia/Tokyo">Токио (UTC+9)</option>
+          </optgroup>
+        </select>
       </div>
 
       <!-- Выбор расписания -->
@@ -121,7 +166,7 @@ const showForm = ref(false)
 const saving = ref(false)
 const scheduleType = ref('interval')
 
-const form = ref({ tool_id: '', interval: '0 * * * *', dailyTime: '09:00' })
+const form = ref({ tool_id: '', interval: '0 * * * *', dailyTime: '09:00', timezone: 'Europe/Moscow' })
 
 // Человекочитаемое описание cron
 const CRON_LABELS = {
@@ -148,6 +193,12 @@ function getToolName(toolId) {
   return at?.tool?.name ?? toolId
 }
 
+function tzShort(tz) {
+  if (!tz || tz === 'UTC') return 'UTC'
+  // Берём последнюю часть: "Europe/Moscow" → "Moscow"
+  return tz.split('/').pop().replace(/_/g, ' ')
+}
+
 function isToolConfigured(toolId) {
   const at = props.agent.agent_tools.find((t) => t.tool_id === toolId)
   return at?.is_configured ?? true
@@ -172,9 +223,10 @@ async function createTrigger() {
       agent_id: props.agent.id,
       tool_id: form.value.tool_id,
       cron_expr: buildCron(),
+      timezone: form.value.timezone,
     })
     triggers.value.push(res.data)
-    form.value = { tool_id: '', interval: '0 * * * *', dailyTime: '09:00' }
+    form.value = { tool_id: '', interval: '0 * * * *', dailyTime: '09:00', timezone: 'Europe/Moscow' }
     showForm.value = false
     toast.success('Автозапуск создан')
   } catch (e) {

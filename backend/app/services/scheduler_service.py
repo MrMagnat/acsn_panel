@@ -74,6 +74,7 @@ def schedule_trigger(trigger: AutoTrigger) -> None:
             day=parts[2],
             month=parts[3],
             day_of_week=parts[4],
+            timezone=trigger.timezone or "UTC",
         )
 
         sched.add_job(

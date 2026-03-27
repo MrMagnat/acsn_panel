@@ -34,6 +34,7 @@ async def create_trigger(
         agent_id=data.agent_id,
         tool_id=data.tool_id,
         cron_expr=data.cron_expr,
+        timezone=data.timezone,
     )
     db.add(trigger)
     await db.flush()
@@ -64,6 +65,8 @@ async def update_trigger(
         trigger.cron_expr = data.cron_expr
     if data.is_active is not None:
         trigger.is_active = data.is_active
+    if data.timezone is not None:
+        trigger.timezone = data.timezone
 
     await db.flush()
 
