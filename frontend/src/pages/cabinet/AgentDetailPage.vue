@@ -29,7 +29,14 @@
           <div class="px-5 py-4 border-b border-gray-100">
             <h2 class="font-semibold text-sm text-gray-700">💬 Чат с агентом</h2>
           </div>
-          <ChatWindow :agent-id="agent.id" :energy-left="agent.energy_left" @energy-updated="agent.energy_left = $event" />
+          <ChatWindow
+            :agent-id="agent.id"
+            :energy-left="agent.energy_left"
+            @energy-updated="agent.energy_left = $event"
+            @trigger-created="reloadAgent"
+            @tool-run="loadRunLogs"
+            @settings-saved="reloadAgent"
+          />
         </div>
 
         <!-- Правая колонка: Инструменты + Автозапуски + История -->
@@ -220,6 +227,11 @@ onMounted(async () => {
   }
   loading.value = false
 })
+
+async function reloadAgent() {
+  const updated = await agentsStore.fetchAgent(route.params.id).catch(() => null)
+  if (updated) agent.value = updated
+}
 
 async function loadRunLogs() {
   if (!agent.value) return

@@ -11,6 +11,9 @@ from ..models.tool import Tool
 from ..models.chat import ChatMessage
 from ..models.subscription import Subscription
 from ..models.energy_transaction import EnergyTransaction
+from ..models.tool_run_log import ToolRunLog
+from ..models.trigger import AutoTrigger
+from ..services.scheduler_service import schedule_trigger
 from ..schemas.chat import ChatResponse, ChatMessageResponse
 
 
@@ -98,101 +101,145 @@ async def send_message(
     effective_model = llm_model or agent.llm_model
     effective_token = llm_token or agent.llm_token
     llm_url = "https://openrouter.ai/api/v1/chat/completions" if effective_model else agent.llm_url
+
+    # Системные инструменты + пользовательские
+    system_tool_defs = _build_system_tool_definitions(agent, configured_tools)
+    all_tool_defs = system_tool_defs + tool_definitions
+
+    trigger_created = False
+
     if llm_url:
         try:
             llm_response = await _call_llm(
                 llm_url=llm_url,
                 system_prompt=system_prompt,
                 messages=messages,
-                tools=tool_definitions,
+                tools=all_tool_defs,
                 llm_model=effective_model,
                 llm_token=effective_token,
             )
 
-            # Обрабатываем tool_call от LLM
             if llm_response.get("tool_call"):
                 tool_call = llm_response["tool_call"]
-                tool_fn = tool_call.get("name")   # это "tool_<id>"
+                tool_fn = tool_call.get("name")
                 tool_args = tool_call.get("arguments", {})
-
-                # Находим нужный agent_tool по fn-имени (tool_<id>)
-                matched_at = next(
-                    (at for at in configured_tools if _tool_fn_name(at.tool.id) == tool_fn), None
-                )
-                tool_name = matched_at.tool.name if matched_at else tool_fn
                 tool_call_id = tool_call.get("id", "call_0")
+                raw_assistant = llm_response.get("raw_message", {})
 
-                if matched_at:
-                    # Мёрджим сохранённые настройки + аргументы от LLM
-                    # LLM-аргументы имеют приоритет (переопределяют для этой сессии)
-                    merged_fields = {**(matched_at.field_values or {}), **tool_args}
-
-                    # Вызываем webhook инструмента
-                    tool_result = await _call_tool_webhook(
-                        webhook_url=matched_at.tool.webhook_url,
-                        field_values=merged_fields,
-                        tool_args={},   # уже влито в field_values
-                        agent_id=agent_id,
-                        user_id=user_id,
+                # --- Системный инструмент: сохранить настройки ---
+                if tool_fn == "save_tool_settings":
+                    sys_result, tool_msg_content = await _handle_save_settings(
+                        tool_args, agent, configured_tools, db
                     )
-
-                    # Сохраняем результат вызова инструмента
                     tool_msg = ChatMessage(
-                        agent_id=agent_id,
-                        role="tool",
-                        content=json.dumps(tool_result, ensure_ascii=False),
-                        tool_name=tool_name,
+                        agent_id=agent_id, role="tool",
+                        content=tool_msg_content, tool_name="⚙️ Сохранение настроек",
                     )
                     db.add(tool_msg)
                     new_messages.append(tool_msg)
+                    messages.append({"role": "assistant", "content": raw_assistant.get("content"), "tool_calls": raw_assistant.get("tool_calls", [])})
+                    messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": tool_msg_content})
+                    final = await _call_llm(llm_url=llm_url, system_prompt=system_prompt, messages=messages, tools=[], llm_model=effective_model, llm_token=effective_token)
+                    assistant_content = final.get("content", "") or "Настройки сохранены."
 
-                    # Списываем энергию за инструмент атомарно с аккаунта
-                    energy_cost = matched_at.tool.energy_cost
-                    await _spend_energy(subscription, energy_cost, db)
-                    await _log_transaction(user_id, -energy_cost, f"Инструмент: {tool_name}", agent_id, tool_name, db)
-                    total_energy_spent += energy_cost
-
-                    # Строим правильную историю для второго вызова LLM
-                    # OpenAI требует: assistant (с tool_calls) → tool (с tool_call_id)
-                    raw_assistant = llm_response.get("raw_message", {})
-                    messages.append({
-                        "role": "assistant",
-                        "content": raw_assistant.get("content"),
-                        "tool_calls": raw_assistant.get("tool_calls", []),
-                    })
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call_id,
-                        "content": json.dumps(tool_result, ensure_ascii=False),
-                    })
-
-                    final_response = await _call_llm(
-                        llm_url=llm_url,
-                        system_prompt=system_prompt,
-                        messages=messages,
-                        tools=[],
-                        llm_model=agent.llm_model,
-                        llm_token=agent.llm_token,
+                # --- Системный инструмент: создать автозапуск ---
+                elif tool_fn == "create_auto_trigger":
+                    sys_result, tool_msg_content = await _handle_create_trigger(
+                        tool_args, agent, user_id, configured_tools, db
                     )
-                    assistant_content = final_response.get("content", "") or f"Инструмент «{tool_name}» выполнен."
+                    trigger_created = sys_result
+                    tool_msg = ChatMessage(
+                        agent_id=agent_id, role="tool",
+                        content=tool_msg_content, tool_name="🕐 Автозапуск",
+                    )
+                    db.add(tool_msg)
+                    new_messages.append(tool_msg)
+                    messages.append({"role": "assistant", "content": raw_assistant.get("content"), "tool_calls": raw_assistant.get("tool_calls", [])})
+                    messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": tool_msg_content})
+                    final = await _call_llm(llm_url=llm_url, system_prompt=system_prompt, messages=messages, tools=[], llm_model=effective_model, llm_token=effective_token)
+                    assistant_content = final.get("content", "") or "Автозапуск создан."
+
+                # --- Пользовательский инструмент (webhook) ---
                 else:
-                    assistant_content = llm_response.get("content", "")
+                    matched_at = next(
+                        (at for at in configured_tools if _tool_fn_name(at.tool.id) == tool_fn), None
+                    )
+                    tool_name = matched_at.tool.name if matched_at else tool_fn
+
+                    if matched_at:
+                        merged_fields = {**(matched_at.field_values or {}), **tool_args}
+
+                        # Создаём run_log с trigger_type="chat"
+                        run_log = ToolRunLog(
+                            agent_id=agent_id,
+                            user_id=user_id,
+                            tool_id=matched_at.tool.id,
+                            tool_name=tool_name,
+                            trigger_type="chat",
+                            status="running",
+                        )
+                        db.add(run_log)
+                        await db.flush()
+                        run_log.instance_id = str(run_log.id)
+
+                        tool_result = await _call_tool_webhook(
+                            webhook_url=matched_at.tool.webhook_url,
+                            field_values=merged_fields,
+                            tool_args={},
+                            agent_id=agent_id,
+                            user_id=user_id,
+                            log_id=str(run_log.id),
+                            instance_id=str(run_log.id),
+                        )
+
+                        from datetime import datetime, timezone as tz
+                        # Если вебхук вернул instanceId — это async-запуск, ждём коллбэка
+                        instance_id = tool_result.get("instanceId") or tool_result.get("instance_id")
+                        if instance_id:
+                            run_log.instance_id = instance_id
+                            # status остаётся "running" — результат придёт через callback
+                        else:
+                            run_log.status = "success" if tool_result.get("status") != "error" else "error"
+                            run_log.result_json = json.dumps(tool_result, ensure_ascii=False)
+                            run_log.finished_at = datetime.now(tz.utc)
+
+                        tool_msg = ChatMessage(
+                            agent_id=agent_id,
+                            role="tool",
+                            content=json.dumps(tool_result, ensure_ascii=False),
+                            tool_name=tool_name,
+                            log_id=str(run_log.id),
+                        )
+                        db.add(tool_msg)
+                        new_messages.append(tool_msg)
+
+                        energy_cost = matched_at.tool.energy_cost
+                        await _spend_energy(subscription, energy_cost, db)
+                        await _log_transaction(user_id, -energy_cost, f"Инструмент: {tool_name}", agent_id, tool_name, db)
+                        total_energy_spent += energy_cost
+
+                        messages.append({"role": "assistant", "content": raw_assistant.get("content"), "tool_calls": raw_assistant.get("tool_calls", [])})
+                        messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": json.dumps(tool_result, ensure_ascii=False)})
+
+                        final = await _call_llm(llm_url=llm_url, system_prompt=system_prompt, messages=messages, tools=[], llm_model=effective_model, llm_token=effective_token)
+                        assistant_content = final.get("content", "") or f"Инструмент «{tool_name}» выполнен."
+                    else:
+                        assistant_content = llm_response.get("content", "")
             else:
                 assistant_content = llm_response.get("content", "")
 
         except Exception as e:
             assistant_content = f"Ошибка при обращении к LLM: {str(e)}"
     else:
-        assistant_content = "LLM не настроен для данного агента. Выберите модель в настройках агента."
+        assistant_content = "LLM не настроен. Выберите модель и введите API-ключ в шапке чата."
 
     # Сохраняем ответ ассистента
     assistant_msg = ChatMessage(agent_id=agent_id, role="assistant", content=assistant_content)
     db.add(assistant_msg)
     new_messages.append(assistant_msg)
 
-    # Списываем энергию за вызов чата атомарно с аккаунта
     await _spend_energy(subscription, agent.energy_per_chat, db)
-    await _log_transaction(user_id, -agent.energy_per_chat, f"Чат с агентом", agent_id, None, db)
+    await _log_transaction(user_id, -agent.energy_per_chat, "Чат с агентом", agent_id, None, db)
     total_energy_spent += agent.energy_per_chat
 
     await db.flush()
@@ -204,12 +251,14 @@ async def send_message(
                 role=msg.role,
                 content=msg.content,
                 tool_name=getattr(msg, "tool_name", None),
+                log_id=getattr(msg, "log_id", None),
                 created_at=msg.created_at,
             )
             for msg in new_messages
         ],
         energy_spent=total_energy_spent,
         energy_left=subscription.energy_left,
+        trigger_created=trigger_created,
     )
 
 
@@ -240,6 +289,121 @@ async def _log_transaction(
     ))
 
 
+def _build_system_tool_definitions(agent, configured_tools: list) -> list[dict]:
+    """Системные инструменты — всегда доступны LLM для управления агентом."""
+    tools = []
+
+    # Строим enum и описание инструментов для системных вызовов
+    if configured_tools:
+        tool_ids_enum = [at.tool.id for at in configured_tools]
+        tool_id_desc = "ID инструмента. Доступные: " + ", ".join(
+            f'"{at.tool.id}" = «{at.tool.name}»' for at in configured_tools
+        )
+        fields_desc = "; ".join(
+            f"«{at.tool.name}» (id={at.tool.id}): поля {[f.field_name for f in at.tool.fields]}"
+            for at in configured_tools if at.tool.fields
+        )
+
+        # Инструмент: сохранить настройки
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": "save_tool_settings",
+                "description": (
+                    "Сохраняет новые настройки инструмента агента. "
+                    "Используй когда пользователь хочет изменить/настроить параметры и сохранить их. "
+                    f"Поля инструментов: {fields_desc}"
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tool_id": {"type": "string", "description": tool_id_desc, "enum": tool_ids_enum},
+                        "field_values": {"type": "object", "description": "Словарь с новыми значениями полей"},
+                    },
+                    "required": ["tool_id", "field_values"],
+                },
+            },
+        })
+
+        # Инструмент: создать автозапуск
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": "create_auto_trigger",
+                "description": (
+                    "Создаёт автозапуск инструмента по расписанию (cron). "
+                    "Используй когда пользователь хочет запускать инструмент автоматически. "
+                    "Примеры cron: '0 9 * * 1' = каждый понедельник в 9:00, '0 */6 * * *' = каждые 6 часов, '0 10 * * *' = каждый день в 10:00."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tool_id": {"type": "string", "description": tool_id_desc, "enum": tool_ids_enum},
+                        "cron_expr": {"type": "string", "description": "Cron-выражение расписания"},
+                        "timezone": {"type": "string", "description": "Часовой пояс, например Europe/Moscow", "default": "UTC"},
+                    },
+                    "required": ["tool_id", "cron_expr"],
+                },
+            },
+        })
+
+    return tools
+
+
+async def _handle_save_settings(
+    args: dict, agent, configured_tools: list, db: AsyncSession
+) -> tuple[bool, str]:
+    """Обрабатывает системный вызов save_tool_settings."""
+    tool_id = args.get("tool_id", "")
+    field_values = args.get("field_values", {})
+
+    matched_at = next((at for at in configured_tools if at.tool.id == tool_id), None)
+    if not matched_at:
+        return False, json.dumps({"status": "error", "message": "Инструмент не найден"})
+
+    # Мёрджим с существующими значениями
+    updated = {**(matched_at.field_values or {}), **field_values}
+    await db.execute(
+        update(AgentTool)
+        .where(AgentTool.id == matched_at.id)
+        .values(field_values=updated, is_configured=True)
+    )
+    matched_at.field_values = updated
+    matched_at.is_configured = True
+
+    return True, json.dumps({"status": "ok", "message": f"Настройки «{matched_at.tool.name}» сохранены", "saved": field_values})
+
+
+async def _handle_create_trigger(
+    args: dict, agent, user_id: str, configured_tools: list, db: AsyncSession
+) -> tuple[bool, str]:
+    """Обрабатывает системный вызов create_auto_trigger."""
+    tool_id = args.get("tool_id", "")
+    cron_expr = args.get("cron_expr", "")
+    timezone = args.get("timezone", "UTC")
+
+    matched_at = next((at for at in configured_tools if at.tool.id == tool_id), None)
+    if not matched_at:
+        return False, json.dumps({"status": "error", "message": "Инструмент не найден"})
+
+    trigger = AutoTrigger(
+        agent_id=agent.id,
+        tool_id=tool_id,
+        cron_expr=cron_expr,
+        timezone=timezone,
+    )
+    db.add(trigger)
+    await db.flush()
+    schedule_trigger(trigger)
+
+    return True, json.dumps({
+        "status": "ok",
+        "message": f"Автозапуск для «{matched_at.tool.name}» создан",
+        "cron": cron_expr,
+        "timezone": timezone,
+    })
+
+
 def _build_system_prompt(agent, configured_tools: list) -> str:
     """Строим полный системный промпт: базовый + скиллы + блок инструментов."""
     parts = []
@@ -265,30 +429,34 @@ def _build_system_prompt(agent, configured_tools: list) -> str:
                 line += f": {desc}"
             if hint:
                 line += f"\n  → Используй когда: {hint}"
-            # Перечисляем runtime-поля — те что пользователь может задавать через чат
-            runtime_fields = [f for f in tool.fields if f.is_runtime]
-            if runtime_fields:
+            # Показываем ВСЕ поля инструмента с текущими значениями
+            if tool.fields:
                 field_descs = []
-                for f in runtime_fields:
+                for f in tool.fields:
                     cur = configured_values.get(f.field_name, "")
+                    req = " (обязательное)" if f.required else ""
                     if cur:
-                        field_descs.append(f'"{f.field_name}" (сейчас: "{cur[:40]}")')
+                        field_descs.append(f'"{f.field_name}"{req}: сейчас "{cur[:40]}"')
                     else:
-                        field_descs.append(f'"{f.field_name}"')
-                line += f"\n  → Параметры которые можно задать: {', '.join(field_descs)}"
+                        field_descs.append(f'"{f.field_name}"{req}: не задано')
+                line += f"\n  → Поля: {', '.join(field_descs)}"
             tool_lines.append(line)
 
         parts.append(
             "## Доступные инструменты\n"
-            "У тебя есть следующие инструменты. Используй их когда это уместно — "
-            "не объясняй пользователю как они работают, просто вызывай и сообщай результат.\n"
+            "У тебя есть следующие инструменты:\n"
             + "\n".join(tool_lines)
         )
         parts.append(
             "## Правила работы с инструментами\n"
-            "1. Если запрос пользователя явно или косвенно требует действия — вызови подходящий инструмент.\n"
-            "2. После получения результата инструмента — объясни его пользователю кратко и по-человечески.\n"
-            "3. Если инструмент вернул ошибку — сообщи об этом и предложи что можно сделать."
+            "1. НИКОГДА не вызывай инструмент сразу. Сначала спроси пользователя о значениях всех полей.\n"
+            "   - Если поле уже заполнено — покажи текущее значение и спроси, оставить или изменить.\n"
+            "   - Если поле пустое — обязательно запроси у пользователя перед вызовом.\n"
+            "2. Вызывай инструмент ТОЛЬКО после того, как пользователь явно подтвердил или предоставил все значения.\n"
+            "3. После получения результата — объясни его пользователю кратко и по-человечески.\n"
+            "4. Если инструмент вернул ошибку — сообщи об этом и предложи что можно сделать.\n"
+            "5. Если пользователь просит сохранить настройки — используй save_tool_settings.\n"
+            "6. Если пользователь просит настроить автозапуск — используй create_auto_trigger."
         )
 
     return "\n\n".join(parts) if parts else ""
@@ -421,6 +589,8 @@ async def _call_tool_webhook(
     tool_args: dict,
     agent_id: str,
     user_id: str,
+    log_id: str | None = None,
+    instance_id: str | None = None,
 ) -> dict:
     """Вызываем webhook нашего движка для запуска воркфлоу инструмента."""
     payload = {
@@ -428,6 +598,8 @@ async def _call_tool_webhook(
         "args": tool_args,
         "agent_id": agent_id,
         "user_id": user_id,
+        "log_id": log_id,
+        "instance_id": instance_id,
     }
 
     try:

@@ -14,6 +14,7 @@ class ChatMessageResponse(BaseModel):
     role: str
     content: str
     tool_name: Optional[str] = None
+    log_id: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -23,3 +24,4 @@ class ChatResponse(BaseModel):
     messages: list[ChatMessageResponse]
     energy_spent: int
     energy_left: int
+    trigger_created: bool = False

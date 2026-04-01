@@ -61,11 +61,15 @@
       <div v-if="loading" class="text-center text-gray-400 py-4 text-sm">Загрузка истории...</div>
 
       <template v-for="msg in messages" :key="msg.id">
-        <!-- Системное сообщение инструмента -->
+        <!-- Системное сообщение инструмента — кликабельная плашка -->
         <div v-if="msg.role === 'tool'" class="flex justify-center">
-          <div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-500 max-w-sm">
-            🔧 <span class="font-medium">{{ msg.tool_name }}</span> вызван
-          </div>
+          <button
+            class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-500 hover:border-primary-300 hover:bg-primary-50 transition-colors"
+            @click="msg.log_id && openLogPopup(msg.log_id)"
+          >
+            🔧 <span class="font-medium">{{ msg.tool_name }}</span>
+            <span v-if="msg.log_id" class="ml-1 text-primary-500">— посмотреть результат →</span>
+          </button>
         </div>
 
         <!-- Сообщение пользователя -->
@@ -77,7 +81,7 @@
 
         <!-- Ответ ассистента -->
         <div v-else class="flex justify-start">
-          <div class="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm max-w-xs lg:max-w-md shadow-sm">
+          <div class="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm max-w-xs lg:max-w-md shadow-sm whitespace-pre-wrap">
             {{ msg.content }}
           </div>
         </div>
@@ -88,7 +92,7 @@
       </div>
     </div>
 
-    <!-- Информация о потраченной энергии -->
+    <!-- Энергия -->
     <div v-if="lastEnergySpent" class="px-4 py-1 text-xs text-gray-400 text-right border-t border-gray-50">
       Потрачено ⚡{{ lastEnergySpent }}, осталось ⚡{{ currentEnergyLeft }}
     </div>
@@ -111,19 +115,78 @@
       </button>
     </div>
   </div>
+
+  <!-- Попап результата запуска (как при ручном ▶) -->
+  <Teleport to="body">
+    <div v-if="popupLogId" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="closePopup">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col" style="max-height: 85vh;">
+        <!-- Шапка -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          <div class="flex items-center gap-2">
+            <span v-if="popupLog?.status === 'running'" class="inline-block w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></span>
+            <span v-else-if="popupLog?.status === 'success'" class="text-green-500">✅</span>
+            <span v-else-if="popupLog?.status === 'cancelled'" class="text-gray-400">⏹</span>
+            <span v-else class="text-red-500">❌</span>
+            <h3 class="font-semibold text-gray-900">{{ popupToolName }}</h3>
+          </div>
+          <button class="text-gray-400 hover:text-gray-600" @click="closePopup">✕</button>
+        </div>
+
+        <!-- Статус -->
+        <div class="px-6 pt-4 pb-1 shrink-0">
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full"
+            :class="{
+              'bg-yellow-100 text-yellow-700': popupLog?.status === 'running',
+              'bg-green-100 text-green-700': popupLog?.status === 'success',
+              'bg-red-100 text-red-700': popupLog?.status === 'error',
+              'bg-gray-100 text-gray-500': popupLog?.status === 'cancelled',
+            }">
+            {{ { running: 'Выполняется...', success: 'Выполнено', error: 'Ошибка', cancelled: 'Остановлено' }[popupLog?.status] ?? 'Запускаем...' }}
+          </span>
+          <span v-if="popupLog?.status === 'running'" class="text-xs text-gray-400 ml-2">обновляется каждые 2 сек...</span>
+        </div>
+
+        <!-- Результат -->
+        <div class="px-6 py-4 overflow-y-auto flex-1">
+          <ResultRenderer v-if="popupLog" :result-json="popupLog.result_json" :status="popupLog.status" />
+          <div v-else class="flex items-center gap-2 text-sm text-gray-400 py-4">
+            <span class="inline-block w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></span>
+            Задача запущена, ожидаем результат...
+          </div>
+        </div>
+
+        <div class="px-6 pb-4 flex justify-between items-center">
+          <button
+            v-if="popupLog?.status === 'running'"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+            :disabled="cancelling"
+            @click="cancelPopup"
+          >
+            <span v-if="cancelling" class="inline-block w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></span>
+            <span v-else>⏹</span>
+            {{ cancelling ? 'Останавливаю...' : 'Остановить' }}
+          </button>
+          <div v-else></div>
+          <button class="btn-secondary text-sm" @click="closePopup">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
 import { chatApi } from '@/api/chat'
+import { agentsApi } from '@/api/agents'
 import { useToastStore } from '@/stores/toast'
 import { useSubscriptionStore } from '@/stores/subscription'
+import ResultRenderer from '@/components/tools/ResultRenderer.vue'
 
 const props = defineProps({
   agentId: { type: String, required: true },
   energyLeft: { type: Number, default: 0 },
 })
-const emit = defineEmits(['energy-updated'])
+const emit = defineEmits(['energy-updated', 'trigger-created', 'tool-run', 'settings-saved'])
 
 const toast = useToastStore()
 const subStore = useSubscriptionStore()
@@ -138,9 +201,15 @@ const selectedModel = ref(localStorage.getItem(`chat_model_${props.agentId}`) ||
 const apiKey = ref(localStorage.getItem(`chat_key_${props.agentId}`) || '')
 const showKey = ref(false)
 
+// Попап результата
+const popupLogId = ref(null)
+const popupLog = ref(null)
+const popupToolName = ref('')
+const cancelling = ref(false)
+let popupPollTimer = null
+
 watch(selectedModel, (v) => localStorage.setItem(`chat_model_${props.agentId}`, v))
 watch(apiKey, (v) => localStorage.setItem(`chat_key_${props.agentId}`, v))
-
 watch(() => props.energyLeft, (v) => { currentEnergyLeft.value = v })
 
 onMounted(async () => {
@@ -153,20 +222,81 @@ onMounted(async () => {
   }
 })
 
+onUnmounted(() => {
+  if (popupPollTimer) clearInterval(popupPollTimer)
+})
+
+async function openLogPopup(logId) {
+  popupLogId.value = logId
+  popupLog.value = null
+  const msg = messages.value.find(m => m.log_id === logId)
+  popupToolName.value = msg?.tool_name || 'Инструмент'
+  await fetchPopupLog(logId)
+  if (popupLog.value?.status === 'running') {
+    popupPollTimer = setInterval(async () => {
+      await fetchPopupLog(logId)
+      if (popupLog.value?.status !== 'running') {
+        clearInterval(popupPollTimer)
+        popupPollTimer = null
+      }
+    }, 2000)
+  }
+}
+
+async function fetchPopupLog(logId) {
+  try {
+    const res = await agentsApi.pollRunLog(logId)
+    const prev = popupLog.value?.status
+    popupLog.value = res.data
+    // Когда статус изменился с running на финальный — обновляем историю
+    if (prev === 'running' && res.data.status !== 'running') emit('tool-run')
+  } catch { /* тихо */ }
+}
+
+function closePopup() {
+  if (popupPollTimer) { clearInterval(popupPollTimer); popupPollTimer = null }
+  popupLogId.value = null
+  popupLog.value = null
+}
+
+async function cancelPopup() {
+  if (!popupLogId.value || cancelling.value) return
+  cancelling.value = true
+  try {
+    const res = await agentsApi.cancelRunLog(popupLogId.value)
+    popupLog.value = res.data
+    if (popupPollTimer) { clearInterval(popupPollTimer); popupPollTimer = null }
+  } catch {
+    toast.error('Не удалось остановить')
+  } finally {
+    cancelling.value = false
+  }
+}
+
 async function sendMessage() {
   if (!inputText.value.trim() || sending.value) return
-
   const text = inputText.value.trim()
   inputText.value = ''
   sending.value = true
-
   try {
     const res = await chatApi.sendMessage(props.agentId, text, selectedModel.value || undefined, apiKey.value || undefined)
     messages.value.push(...res.data.messages)
     lastEnergySpent.value = res.data.energy_spent
     currentEnergyLeft.value = res.data.energy_left
-    subStore.setEnergyLeft(res.data.energy_left)  // обновляем сайдбар мгновенно
+    subStore.setEnergyLeft(res.data.energy_left)
     emit('energy-updated', res.data.energy_left)
+
+    // Автоматически открываем попап если был вызван инструмент
+    const toolMsg = res.data.messages.find(m => m.role === 'tool' && m.log_id)
+    if (toolMsg) openLogPopup(toolMsg.log_id)
+
+    // Оповещаем родителя об изменениях
+    if (toolMsg) emit('tool-run')
+    if (res.data.trigger_created) emit('trigger-created')
+
+    // Проверяем системные действия (сохранение настроек)
+    const systemMsg = res.data.messages.find(m => m.role === 'tool' && !m.log_id && m.tool_name?.includes('Сохранение'))
+    if (systemMsg) emit('settings-saved')
     await scrollToBottom()
   } catch (e) {
     toast.error(e.response?.data?.detail || 'Ошибка отправки сообщения')
@@ -177,8 +307,6 @@ async function sendMessage() {
 
 async function scrollToBottom() {
   await nextTick()
-  if (scrollEl.value) {
-    scrollEl.value.scrollTop = scrollEl.value.scrollHeight
-  }
+  if (scrollEl.value) scrollEl.value.scrollTop = scrollEl.value.scrollHeight
 }
 </script>

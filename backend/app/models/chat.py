@@ -11,6 +11,7 @@ class ChatMessage(Base):
     role: Mapped[str] = mapped_column(String(50), nullable=False)
     content: Mapped[str] = mapped_column(Text, default="")
     tool_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    log_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     agent: Mapped["UserAgent"] = relationship("UserAgent", back_populates="chat_messages")
