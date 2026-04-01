@@ -3,25 +3,44 @@
     <!-- Настройки модели -->
     <div class="px-4 py-2 border-b border-gray-100 flex items-center gap-2">
       <select v-model="selectedModel" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 flex-1 min-w-0">
-        <option value="">— выбрать модель —</option>
+        <option value="">— Выберите модель —</option>
+        <optgroup label="🆓 Бесплатные">
+          <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (бесплатно)</option>
+          <option value="deepseek/deepseek-r1:free">DeepSeek R1 (бесплатно)</option>
+          <option value="deepseek/deepseek-chat-v3-0324:free">DeepSeek V3 (бесплатно)</option>
+          <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (бесплатно)</option>
+          <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B (бесплатно)</option>
+          <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (бесплатно)</option>
+          <option value="qwen/qwen-2.5-72b-instruct:free">Qwen 2.5 72B (бесплатно)</option>
+        </optgroup>
         <optgroup label="OpenAI">
           <option value="openai/gpt-4o">GPT-4o</option>
-          <option value="openai/gpt-4o-mini">GPT-4o mini</option>
-          <option value="openai/gpt-4-turbo">GPT-4 Turbo</option>
-          <option value="openai/o1-mini">o1 mini</option>
+          <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+          <option value="openai/gpt-4.5-preview">GPT-4.5 Preview</option>
+          <option value="openai/o3-mini">o3-mini</option>
+          <option value="openai/o1">o1</option>
         </optgroup>
         <optgroup label="Anthropic">
-          <option value="anthropic/claude-opus-4">Claude Opus 4</option>
-          <option value="anthropic/claude-sonnet-4-5">Claude Sonnet 4.5</option>
-          <option value="anthropic/claude-haiku-3-5">Claude Haiku 3.5</option>
+          <option value="anthropic/claude-3-7-sonnet">Claude 3.7 Sonnet</option>
+          <option value="anthropic/claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+          <option value="anthropic/claude-3-5-haiku">Claude 3.5 Haiku</option>
+          <option value="anthropic/claude-3-opus">Claude 3 Opus</option>
         </optgroup>
         <optgroup label="Google">
           <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+          <option value="google/gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro</option>
+          <option value="google/gemini-flash-1.5">Gemini 1.5 Flash</option>
           <option value="google/gemini-pro-1.5">Gemini 1.5 Pro</option>
         </optgroup>
-        <optgroup label="Meta">
+        <optgroup label="DeepSeek">
+          <option value="deepseek/deepseek-r1">DeepSeek R1</option>
+          <option value="deepseek/deepseek-chat-v3-0324">DeepSeek V3</option>
+        </optgroup>
+        <optgroup label="Meta / Open Source">
           <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
-          <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
+          <option value="mistralai/mistral-large">Mistral Large</option>
+          <option value="mistralai/mistral-small-3.1-24b-instruct">Mistral Small 3.1</option>
+          <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B</option>
         </optgroup>
       </select>
       <div class="relative flex-1 min-w-0">
@@ -29,7 +48,7 @@
           v-model="apiKey"
           :type="showKey ? 'text' : 'password'"
           class="text-xs border border-gray-200 rounded-lg px-2 py-1 w-full pr-7"
-          placeholder="API ключ"
+          placeholder="sk-or-v1-..."
         />
         <button class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" @click="showKey = !showKey">
           {{ showKey ? '🙈' : '👁' }}
