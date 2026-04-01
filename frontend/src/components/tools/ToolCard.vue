@@ -67,6 +67,34 @@
       </div>
     </div>
 
+    <!-- Попап: выбор способа запуска -->
+    <div v-if="showRunChoice" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="showRunChoice = false">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-3">
+        <h3 class="font-semibold text-gray-900 text-center mb-1">Запустить «{{ agentTool.tool.name }}»</h3>
+        <button
+          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left"
+          @click="runWithCurrent"
+        >
+          <span class="text-xl">▶</span>
+          <div>
+            <div class="text-sm font-medium text-gray-900">Запустить с текущими настройками</div>
+            <div class="text-xs text-gray-400">Использовать ранее сохранённые значения</div>
+          </div>
+        </button>
+        <button
+          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left"
+          @click="configureAndRun"
+        >
+          <span class="text-xl">⚙️</span>
+          <div>
+            <div class="text-sm font-medium text-gray-900">Настроить по-новому</div>
+            <div class="text-xs text-gray-400">Изменить параметры перед запуском</div>
+          </div>
+        </button>
+        <button class="text-sm text-gray-400 hover:text-gray-600 mt-1 text-center" @click="showRunChoice = false">Отмена</button>
+      </div>
+    </div>
+
     <!-- Попап: инструмент не настроен -->
     <div v-if="showNotConfigured" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="showNotConfigured = false">
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 flex flex-col items-center text-center">
@@ -156,6 +184,8 @@ const toast = useToastStore()
 const subStore = useSubscriptionStore()
 const openModal = ref(false)
 const showNotConfigured = ref(false)
+const showRunChoice = ref(false)
+const runAfterSave = ref(false)
 const running = ref(false)
 const localValues = reactive({ ...props.agentTool.field_values })
 
@@ -176,11 +206,23 @@ const statusLabel = computed(() => {
 function save() {
   emit('update', { toolId: props.agentTool.tool_id, fieldValues: { ...localValues } })
   openModal.value = false
+  if (runAfterSave.value) { runAfterSave.value = false; runTool() }
 }
 
 function handleRun() {
   if (!props.agentTool.is_configured) { showNotConfigured.value = true; return }
+  showRunChoice.value = true
+}
+
+function runWithCurrent() {
+  showRunChoice.value = false
   runTool()
+}
+
+function configureAndRun() {
+  showRunChoice.value = false
+  runAfterSave.value = true
+  openModal.value = true
 }
 
 function openSettings() { showNotConfigured.value = false; openModal.value = true }
