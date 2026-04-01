@@ -17,6 +17,7 @@ const routes = [
       { path: 'agents/:id', name: 'AgentDetail', component: () => import('@/pages/cabinet/AgentDetailPage.vue') },
       { path: 'settings', name: 'Settings', component: () => import('@/pages/cabinet/SettingsPage.vue') },
       { path: 'tools', name: 'ToolStore', component: () => import('@/pages/cabinet/ToolStorePage.vue') },
+      { path: 'history', name: 'RunHistory', component: () => import('@/pages/cabinet/RunHistoryPage.vue') },
     ],
   },
 

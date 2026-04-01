@@ -44,6 +44,21 @@ class ToolCallbackPayload(BaseModel):
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
+@router.get("/run-logs", response_model=list[RunLogResponse])
+async def list_all_run_logs(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Все запуски пользователя (все агенты + standalone) — последние 200."""
+    result = await db.execute(
+        select(ToolRunLog)
+        .where(ToolRunLog.user_id == current_user.id)
+        .order_by(ToolRunLog.started_at.desc())
+        .limit(200)
+    )
+    return result.scalars().all()
+
+
 @router.get("/agents/{agent_id}/run-logs", response_model=list[RunLogResponse])
 async def list_run_logs(
     agent_id: str,

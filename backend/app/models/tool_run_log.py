@@ -7,7 +7,7 @@ class ToolRunLog(Base):
     __tablename__ = "tool_run_logs"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=gen_uuid)
-    agent_id: Mapped[str] = mapped_column(String, ForeignKey("user_agents.id", ondelete="CASCADE"), nullable=False)
+    agent_id: Mapped[str | None] = mapped_column(String, ForeignKey("user_agents.id", ondelete="CASCADE"), nullable=True)
     user_id: Mapped[str] = mapped_column(String, nullable=False)
     tool_id: Mapped[str] = mapped_column(String, nullable=False)
     tool_name: Mapped[str] = mapped_column(String(255), nullable=False, default="")

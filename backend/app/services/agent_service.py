@@ -359,6 +359,98 @@ async def run_tool_manually(agent_id: str, user_id: str, tool_id: str, db: Async
         return {"status": "error", "log_id": run_log.id, "result": str(e), "energy_left": energy_left_after}
 
 
+async def run_tool_standalone(user_id: str, tool_id: str, field_values: dict, db: AsyncSession) -> dict:
+    """Запуск инструмента без агента (из магазина инструментов)."""
+    import httpx
+    import json as _json
+    from datetime import datetime, timezone
+    from sqlalchemy import update as sa_update
+
+    result = await db.execute(
+        select(Tool).where(Tool.id == tool_id, Tool.is_active == True)
+        .options(selectinload(Tool.fields))
+    )
+    tool = result.scalar_one_or_none()
+    if not tool:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Инструмент не найден")
+
+    energy_cost = tool.energy_cost
+
+    sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
+    subscription = sub_result.scalar_one_or_none()
+    if not subscription or subscription.energy_left < energy_cost:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Недостаточно энергии для запуска инструмента",
+        )
+
+    upd = await db.execute(
+        sa_update(Subscription)
+        .where(Subscription.id == subscription.id, Subscription.energy_left >= energy_cost)
+        .values(energy_left=Subscription.energy_left - energy_cost)
+        .returning(Subscription.energy_left)
+    )
+    row = upd.fetchone()
+    energy_left_after = row[0] if row else subscription.energy_left
+
+    db.add(EnergyTransaction(
+        user_id=user_id,
+        amount=-energy_cost,
+        description=f"Запуск из магазина: {tool.name}",
+        agent_id=None,
+        tool_name=tool.name,
+    ))
+
+    run_log = ToolRunLog(
+        agent_id=None,
+        user_id=user_id,
+        tool_id=tool_id,
+        tool_name=tool.name,
+        trigger_type="manual",
+        status="running",
+    )
+    db.add(run_log)
+    await db.flush()
+    run_log.instance_id = str(run_log.id)
+
+    payload = {
+        "fields": field_values,
+        "args": {},
+        "user_id": user_id,
+        "log_id": str(run_log.id),
+        "instance_id": str(run_log.id),
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(tool.webhook_url, json=payload)
+            response.raise_for_status()
+            webhook_data = response.json()
+
+        instance_id = webhook_data.get("instanceId") or webhook_data.get("instance_id")
+        if instance_id:
+            run_log.instance_id = instance_id
+        else:
+            run_log.status = "success"
+            run_log.result_json = _json.dumps(webhook_data, ensure_ascii=False)
+            run_log.finished_at = datetime.now(timezone.utc)
+
+        await db.flush()
+        return {"status": "ok", "log_id": run_log.id, "energy_left": energy_left_after}
+    except httpx.TimeoutException:
+        run_log.status = "error"
+        run_log.result_json = _json.dumps({"error": "Инструмент не ответил (таймаут 30 сек)"})
+        run_log.finished_at = datetime.now(timezone.utc)
+        await db.flush()
+        return {"status": "error", "log_id": run_log.id, "energy_left": energy_left_after}
+    except Exception as e:
+        run_log.status = "error"
+        run_log.result_json = _json.dumps({"error": str(e)})
+        run_log.finished_at = datetime.now(timezone.utc)
+        await db.flush()
+        return {"status": "error", "log_id": run_log.id, "energy_left": energy_left_after}
+
+
 async def _add_tools_to_agent(
     agent: UserAgent, tool_ids: list[str], max_tools: int, db: AsyncSession
 ) -> None:

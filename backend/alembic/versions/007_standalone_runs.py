@@ -1,0 +1,23 @@
+"""standalone_runs: make agent_id nullable in tool_run_logs
+
+Revision ID: 007
+Revises: 006
+Create Date: 2026-04-01
+"""
+from alembic import op
+import sqlalchemy as sa
+
+revision = '007'
+down_revision = '006'
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    with op.batch_alter_table('tool_run_logs') as batch_op:
+        batch_op.alter_column('agent_id', nullable=True)
+
+
+def downgrade():
+    with op.batch_alter_table('tool_run_logs') as batch_op:
+        batch_op.alter_column('agent_id', nullable=False)
