@@ -1,5 +1,42 @@
 <template>
   <div class="flex flex-col flex-1">
+    <!-- Настройки модели -->
+    <div class="px-4 py-2 border-b border-gray-100 flex items-center gap-2">
+      <select v-model="selectedModel" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 flex-1 min-w-0">
+        <option value="">— выбрать модель —</option>
+        <optgroup label="OpenAI">
+          <option value="openai/gpt-4o">GPT-4o</option>
+          <option value="openai/gpt-4o-mini">GPT-4o mini</option>
+          <option value="openai/gpt-4-turbo">GPT-4 Turbo</option>
+          <option value="openai/o1-mini">o1 mini</option>
+        </optgroup>
+        <optgroup label="Anthropic">
+          <option value="anthropic/claude-opus-4">Claude Opus 4</option>
+          <option value="anthropic/claude-sonnet-4-5">Claude Sonnet 4.5</option>
+          <option value="anthropic/claude-haiku-3-5">Claude Haiku 3.5</option>
+        </optgroup>
+        <optgroup label="Google">
+          <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+          <option value="google/gemini-pro-1.5">Gemini 1.5 Pro</option>
+        </optgroup>
+        <optgroup label="Meta">
+          <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
+          <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
+        </optgroup>
+      </select>
+      <div class="relative flex-1 min-w-0">
+        <input
+          v-model="apiKey"
+          :type="showKey ? 'text' : 'password'"
+          class="text-xs border border-gray-200 rounded-lg px-2 py-1 w-full pr-7"
+          placeholder="API ключ"
+        />
+        <button class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" @click="showKey = !showKey">
+          {{ showKey ? '🙈' : '👁' }}
+        </button>
+      </div>
+    </div>
+
     <!-- История сообщений -->
     <div ref="scrollEl" class="flex-1 overflow-y-auto p-4 space-y-3" style="min-height: 300px; max-height: 400px">
       <div v-if="loading" class="text-center text-gray-400 py-4 text-sm">Загрузка истории...</div>
@@ -78,6 +115,12 @@ const inputText = ref('')
 const scrollEl = ref(null)
 const lastEnergySpent = ref(0)
 const currentEnergyLeft = ref(props.energyLeft)
+const selectedModel = ref(localStorage.getItem(`chat_model_${props.agentId}`) || '')
+const apiKey = ref(localStorage.getItem(`chat_key_${props.agentId}`) || '')
+const showKey = ref(false)
+
+watch(selectedModel, (v) => localStorage.setItem(`chat_model_${props.agentId}`, v))
+watch(apiKey, (v) => localStorage.setItem(`chat_key_${props.agentId}`, v))
 
 watch(() => props.energyLeft, (v) => { currentEnergyLeft.value = v })
 
@@ -99,7 +142,7 @@ async function sendMessage() {
   sending.value = true
 
   try {
-    const res = await chatApi.sendMessage(props.agentId, text)
+    const res = await chatApi.sendMessage(props.agentId, text, selectedModel.value || undefined, apiKey.value || undefined)
     messages.value.push(...res.data.messages)
     lastEnergySpent.value = res.data.energy_spent
     currentEnergyLeft.value = res.data.energy_left

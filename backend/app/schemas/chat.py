@@ -5,6 +5,8 @@ from typing import Optional
 
 class SendMessageRequest(BaseModel):
     content: str
+    llm_model: Optional[str] = None
+    llm_token: Optional[str] = None
 
 
 class ChatMessageResponse(BaseModel):

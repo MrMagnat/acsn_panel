@@ -28,4 +28,7 @@ async def send_message(
     db: AsyncSession = Depends(get_db),
 ):
     """Отправить сообщение агенту."""
-    return await chat_service.send_message(agent_id, current_user.id, data.content, db)
+    return await chat_service.send_message(
+        agent_id, current_user.id, data.content, db,
+        llm_model=data.llm_model, llm_token=data.llm_token,
+    )

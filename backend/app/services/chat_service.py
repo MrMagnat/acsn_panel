@@ -31,7 +31,10 @@ async def get_chat_history(agent_id: str, user_id: str, db: AsyncSession) -> lis
     return result.scalars().all()
 
 
-async def send_message(agent_id: str, user_id: str, content: str, db: AsyncSession) -> ChatResponse:
+async def send_message(
+    agent_id: str, user_id: str, content: str, db: AsyncSession,
+    llm_model: str | None = None, llm_token: str | None = None,
+) -> ChatResponse:
     """Отправляем сообщение агенту, вызываем LLM и инструменты по необходимости."""
     # Загружаем агента с инструментами
     agent_result = await db.execute(
@@ -92,7 +95,9 @@ async def send_message(agent_id: str, user_id: str, content: str, db: AsyncSessi
 
     # Вызываем LLM если настроен (OpenRouter или кастомный URL)
     assistant_content = ""
-    llm_url = "https://openrouter.ai/api/v1/chat/completions" if agent.llm_model else agent.llm_url
+    effective_model = llm_model or agent.llm_model
+    effective_token = llm_token or agent.llm_token
+    llm_url = "https://openrouter.ai/api/v1/chat/completions" if effective_model else agent.llm_url
     if llm_url:
         try:
             llm_response = await _call_llm(
@@ -100,8 +105,8 @@ async def send_message(agent_id: str, user_id: str, content: str, db: AsyncSessi
                 system_prompt=system_prompt,
                 messages=messages,
                 tools=tool_definitions,
-                llm_model=agent.llm_model,
-                llm_token=agent.llm_token,
+                llm_model=effective_model,
+                llm_token=effective_token,
             )
 
             # Обрабатываем tool_call от LLM
