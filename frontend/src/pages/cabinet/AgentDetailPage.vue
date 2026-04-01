@@ -1,5 +1,5 @@
 <template>
-  <div class="p-8 max-w-4xl mx-auto">
+  <div class="p-6 max-w-7xl mx-auto">
     <!-- Загрузка -->
     <div v-if="loading" class="flex justify-center py-16 text-gray-400">Загрузка...</div>
 
@@ -21,103 +21,103 @@
         <button class="btn-secondary text-sm" @click="showEditModal = true">Редактировать</button>
       </div>
 
-      <!-- Инструменты -->
-      <div class="card p-5 mb-4">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-semibold text-sm text-gray-700">🔧 Инструменты</h2>
-          <span class="text-xs text-gray-400">{{ agent.agent_tools.length }} / {{ subStore.data?.max_tools_per_agent ?? '—' }}</span>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <!-- Плитки инструментов -->
-          <ToolCard
-            v-for="at in agent.agent_tools"
-            :key="at.id"
-            :agent-tool="at"
-            :agent-id="agent.id"
-            @update="handleToolFieldsUpdate"
-            @remove="handleRemoveTool"
-          />
+      <!-- Двухколоночный layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
 
-          <!-- Кнопка добавить инструмент -->
-          <button
-            class="border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-primary-400 hover:bg-primary-50 transition-colors cursor-pointer text-sm text-gray-500"
-            @click="handleAddToolClick"
-          >
-            <span class="text-2xl">+</span>
-            <span>Добавить инструмент</span>
-          </button>
-        </div>
-
-        <!-- Предупреждение о лимите -->
-        <p v-if="atToolLimit" class="mt-3 text-xs text-yellow-700 bg-yellow-50 rounded-lg px-3 py-2">
-          Достигнут лимит инструментов.
-          <a href="https://ascn.ai/pricing" target="_blank" class="underline font-medium">Улучшите подписку →</a>
-        </p>
-      </div>
-
-      <!-- История запусков -->
-      <div class="card p-5 mb-4">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-semibold text-sm text-gray-700">📋 История запусков</h2>
-          <button class="text-xs text-primary-600 hover:underline" @click="loadRunLogs">Обновить</button>
-        </div>
-        <div v-if="runLogs.length === 0" class="text-xs text-gray-400 text-center py-4">
-          Пока нет запусков. Нажмите ▶ Запустить на любом инструменте.
-        </div>
-        <div v-else class="space-y-2">
-          <div
-            v-for="log in runLogs"
-            :key="log.id"
-            class="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200"
-          >
-            <!-- Статус иконка -->
-            <div class="shrink-0 mt-0.5 cursor-pointer" @click="openLogDetail(log)">
-              <span v-if="log.status === 'running'" class="inline-block w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></span>
-              <span v-else-if="log.status === 'success'" class="text-green-500 text-base leading-none">✅</span>
-              <span v-else-if="log.status === 'cancelled'" class="text-gray-400 text-base leading-none">⏹</span>
-              <span v-else class="text-red-500 text-base leading-none">❌</span>
-            </div>
-            <!-- Инфо -->
-            <div class="flex-1 min-w-0 cursor-pointer" @click="openLogDetail(log)">
-              <div class="flex items-center gap-2">
-                <span class="font-medium text-sm text-gray-800">{{ log.tool_name }}</span>
-                <span class="text-xs px-1.5 py-0.5 rounded-full"
-                  :class="{
-                    'bg-gray-100 text-gray-500': log.trigger_type === 'manual',
-                    'bg-blue-100 text-blue-600': log.trigger_type === 'chat',
-                    'bg-purple-100 text-purple-600': log.trigger_type === 'auto',
-                  }">
-                  {{ { manual: '▶ вручную', chat: '💬 чат', auto: '🕐 авто' }[log.trigger_type] ?? log.trigger_type }}
-                </span>
-              </div>
-              <div class="text-xs text-gray-400 mt-0.5">{{ formatDate(log.started_at) }}</div>
-              <!-- Краткий результат -->
-              <div v-if="log.status !== 'running' && log.result_json" class="text-xs text-gray-500 mt-1 truncate">
-                {{ summarizeResult(log.result_json) }}
-              </div>
-            </div>
-            <!-- Кнопка удаления -->
-            <button
-              class="shrink-0 text-gray-300 hover:text-red-400 transition-colors mt-0.5"
-              title="Удалить"
-              @click.stop="deleteLog(log.id)"
-            >🗑</button>
+        <!-- Левая колонка: Чат -->
+        <div class="card flex flex-col" style="min-height: 600px">
+          <div class="px-5 py-4 border-b border-gray-100">
+            <h2 class="font-semibold text-sm text-gray-700">💬 Чат с агентом</h2>
           </div>
+          <ChatWindow :agent-id="agent.id" :energy-left="agent.energy_left" @energy-updated="agent.energy_left = $event" />
         </div>
-      </div>
 
-      <!-- Автозапуски -->
-      <div class="card p-5 mb-4">
-        <h2 class="font-semibold text-sm text-gray-700 mb-4">🕐 Автозапуски</h2>
-        <TriggersBlock :agent="agent" />
-      </div>
+        <!-- Правая колонка: Инструменты + Автозапуски + История -->
+        <div class="flex flex-col gap-4">
 
-      <!-- Чат -->
-      <div class="card flex flex-col" style="min-height: 480px">
-        <div class="px-5 py-4 border-b border-gray-100">
-          <h2 class="font-semibold text-sm text-gray-700">💬 Чат с агентом</h2>
+          <!-- Инструменты -->
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="font-semibold text-sm text-gray-700">🔧 Инструменты</h2>
+              <span class="text-xs text-gray-400">{{ agent.agent_tools.length }} / {{ subStore.data?.max_tools_per_agent ?? '—' }}</span>
+            </div>
+            <div class="grid grid-cols-1 gap-3">
+              <ToolCard
+                v-for="at in agent.agent_tools"
+                :key="at.id"
+                :agent-tool="at"
+                :agent-id="agent.id"
+                @update="handleToolFieldsUpdate"
+                @remove="handleRemoveTool"
+              />
+              <button
+                class="border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-primary-400 hover:bg-primary-50 transition-colors cursor-pointer text-sm text-gray-500"
+                @click="handleAddToolClick"
+              >
+                <span class="text-2xl">+</span>
+                <span>Добавить инструмент</span>
+              </button>
+            </div>
+            <p v-if="atToolLimit" class="mt-3 text-xs text-yellow-700 bg-yellow-50 rounded-lg px-3 py-2">
+              Достигнут лимит инструментов.
+              <a href="https://ascn.ai/pricing" target="_blank" class="underline font-medium">Улучшите подписку →</a>
+            </p>
+          </div>
+
+          <!-- Автозапуски -->
+          <div class="card p-5">
+            <h2 class="font-semibold text-sm text-gray-700 mb-4">🕐 Автозапуски</h2>
+            <TriggersBlock :agent="agent" />
+          </div>
+
+          <!-- История запусков -->
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="font-semibold text-sm text-gray-700">📋 История запусков</h2>
+              <button class="text-xs text-primary-600 hover:underline" @click="loadRunLogs">Обновить</button>
+            </div>
+            <div v-if="runLogs.length === 0" class="text-xs text-gray-400 text-center py-4">
+              Пока нет запусков. Нажмите ▶ Запустить на любом инструменте.
+            </div>
+            <div v-else class="space-y-2">
+              <div
+                v-for="log in runLogs"
+                :key="log.id"
+                class="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200"
+              >
+                <div class="shrink-0 mt-0.5 cursor-pointer" @click="openLogDetail(log)">
+                  <span v-if="log.status === 'running'" class="inline-block w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></span>
+                  <span v-else-if="log.status === 'success'" class="text-green-500 text-base leading-none">✅</span>
+                  <span v-else-if="log.status === 'cancelled'" class="text-gray-400 text-base leading-none">⏹</span>
+                  <span v-else class="text-red-500 text-base leading-none">❌</span>
+                </div>
+                <div class="flex-1 min-w-0 cursor-pointer" @click="openLogDetail(log)">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium text-sm text-gray-800">{{ log.tool_name }}</span>
+                    <span class="text-xs px-1.5 py-0.5 rounded-full"
+                      :class="{
+                        'bg-gray-100 text-gray-500': log.trigger_type === 'manual',
+                        'bg-blue-100 text-blue-600': log.trigger_type === 'chat',
+                        'bg-purple-100 text-purple-600': log.trigger_type === 'auto',
+                      }">
+                      {{ { manual: '▶ вручную', chat: '💬 чат', auto: '🕐 авто' }[log.trigger_type] ?? log.trigger_type }}
+                    </span>
+                  </div>
+                  <div class="text-xs text-gray-400 mt-0.5">{{ formatDate(log.started_at) }}</div>
+                  <div v-if="log.status !== 'running' && log.result_json" class="text-xs text-gray-500 mt-1 truncate">
+                    {{ summarizeResult(log.result_json) }}
+                  </div>
+                </div>
+                <button
+                  class="shrink-0 text-gray-300 hover:text-red-400 transition-colors mt-0.5"
+                  title="Удалить"
+                  @click.stop="deleteLog(log.id)"
+                >🗑</button>
+              </div>
+            </div>
+          </div>
+
         </div>
-        <ChatWindow :agent-id="agent.id" :energy-left="agent.energy_left" @energy-updated="agent.energy_left = $event" />
       </div>
     </template>
 
