@@ -32,7 +32,7 @@ async def get_agent_by_id(agent_id: str, user_id: str, db: AsyncSession) -> User
         .where(UserAgent.id == agent_id, UserAgent.user_id == user_id)
         .options(
             selectinload(UserAgent.agent_tools).selectinload(AgentTool.tool).selectinload(Tool.fields),
-            selectinload(UserAgent.auto_triggers).selectinload(AutoTrigger.tool),
+            selectinload(UserAgent.auto_triggers).selectinload(AutoTrigger.tool).selectinload(Tool.fields),
         )
     )
     agent = result.scalar_one_or_none()
