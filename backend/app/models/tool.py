@@ -31,5 +31,7 @@ class ToolField(Base):
     # is_runtime=True → LLM видит поле как параметр и может менять через чат
     # is_runtime=False → поле только в настройках, LLM его не трогает
     is_runtime: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Для типа select: JSON-массив строк ["вариант1", "вариант2"]
+    options: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     tool: Mapped["Tool"] = relationship("Tool", back_populates="fields")

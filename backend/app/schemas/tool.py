@@ -6,9 +6,10 @@ class ToolFieldBase(BaseModel):
     field_name: str
     hint: str = ""
     required: bool = False
-    field_type: str = "text"
+    field_type: str = "text"   # text | url | number | json | select
     sort_order: int = 0
-    is_runtime: bool = False  # True = LLM может задавать/менять через чат
+    is_runtime: bool = False   # True = LLM может задавать/менять через чат
+    options: Optional[str] = None  # JSON-массив для типа select: '["a","b","c"]'
 
 
 class ToolFieldCreate(ToolFieldBase):

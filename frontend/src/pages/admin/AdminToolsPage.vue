@@ -96,9 +96,11 @@
                 <div>
                   <label class="text-xs text-gray-500">Тип</label>
                   <select v-model="field.field_type" class="input text-xs mt-0.5">
-                    <option value="text">text</option>
-                    <option value="url">url</option>
-                    <option value="number">number</option>
+                    <option value="text">text — строка</option>
+                    <option value="url">url — ссылка</option>
+                    <option value="number">number — число</option>
+                    <option value="json">json — объект JSON</option>
+                    <option value="select">select — выбор из списка</option>
                   </select>
                 </div>
                 <div class="flex flex-col">
@@ -112,6 +114,20 @@
               <div>
                 <label class="text-xs text-gray-500">Подсказка (hint)</label>
                 <input v-model="field.hint" class="input text-xs mt-0.5" placeholder="Введите ваш API ключ..." />
+              </div>
+              <!-- Варианты для select -->
+              <div v-if="field.field_type === 'select'">
+                <label class="text-xs text-gray-500">Варианты выбора <span class="text-gray-400">(каждый с новой строки)</span></label>
+                <textarea
+                  class="input text-xs mt-0.5 resize-none h-20 font-mono"
+                  placeholder="Красота&#10;Технологии&#10;Криптовалюта"
+                  :value="optionsToText(field.options)"
+                  @input="field.options = textToOptions($event.target.value)"
+                ></textarea>
+              </div>
+              <!-- Подсказка для json -->
+              <div v-if="field.field_type === 'json'" class="text-xs text-blue-500 bg-blue-50 rounded px-2 py-1">
+                Пользователь введёт JSON-объект. В webhook отправится как строка.
               </div>
               <!-- is_runtime toggle -->
               <div class="flex items-center gap-2 pt-1 border-t border-gray-200">
@@ -176,7 +192,17 @@ function openCreate() {
 }
 
 function addField() {
-  form.value.fields.push({ field_name: '', hint: '', required: false, field_type: 'text', sort_order: form.value.fields.length, is_runtime: false })
+  form.value.fields.push({ field_name: '', hint: '', required: false, field_type: 'text', sort_order: form.value.fields.length, is_runtime: false, options: null })
+}
+
+// Конвертация options JSON <-> текст (одна строка = один вариант)
+function optionsToText(options) {
+  if (!options) return ''
+  try { return JSON.parse(options).join('\n') } catch { return options }
+}
+function textToOptions(text) {
+  const lines = text.split('\n').map(s => s.trim()).filter(Boolean)
+  return lines.length ? JSON.stringify(lines) : null
 }
 
 function removeField(idx) {

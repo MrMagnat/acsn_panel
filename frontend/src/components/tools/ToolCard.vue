@@ -54,10 +54,20 @@
               <span v-if="field.required" class="text-red-500 ml-0.5">*</span>
               <span v-if="field.is_runtime" class="ml-1 text-xs text-primary-500 font-normal">💬 чат</span>
             </label>
-            <input v-model="localValues[field.field_name]" class="input"
+            <!-- select -->
+            <select v-if="field.field_type === 'select'" v-model="localValues[field.field_name]" class="input">
+              <option value="">— выберите —</option>
+              <option v-for="opt in parseOptions(field.options)" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+            <!-- json -->
+            <textarea v-else-if="field.field_type === 'json'" v-model="localValues[field.field_name]"
+              class="input resize-none h-24 font-mono text-xs"
+              :placeholder="field.hint || '{\"key\": \"value\"}'"></textarea>
+            <!-- text / url / number -->
+            <input v-else v-model="localValues[field.field_name]" class="input"
               :placeholder="field.hint || field.field_name"
               :type="field.field_type === 'number' ? 'number' : field.field_type === 'url' ? 'url' : 'text'" />
-            <p v-if="field.hint" class="text-xs text-gray-400 mt-1">{{ field.hint }}</p>
+            <p v-if="field.hint && field.field_type !== 'json'" class="text-xs text-gray-400 mt-1">{{ field.hint }}</p>
           </div>
         </div>
         <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
@@ -202,6 +212,11 @@ const statusLabel = computed(() => {
   if (!runLog.value) return 'Запускаем...'
   return { running: 'Выполняется...', success: 'Выполнено', error: 'Ошибка', cancelled: 'Остановлено' }[runLog.value.status] ?? runLog.value.status
 })
+
+function parseOptions(options) {
+  if (!options) return []
+  try { return JSON.parse(options) } catch { return [] }
+}
 
 function save() {
   emit('update', { toolId: props.agentTool.tool_id, fieldValues: { ...localValues } })
