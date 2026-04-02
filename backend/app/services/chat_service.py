@@ -72,7 +72,9 @@ async def send_message(
     new_messages = [user_msg]
     total_energy_spent = 0
 
-    # Получаем только настроенные (configured) инструменты для передачи в LLM
+    # Все инструменты агента — для системных операций (настройка, автозапуск)
+    all_agent_tools = agent.agent_tools
+    # Только настроенные — для вызова вебхуков
     configured_tools = [at for at in agent.agent_tools if at.is_configured]
 
     # Строим описание инструментов в формате function calling
@@ -94,7 +96,7 @@ async def send_message(
     messages.append({"role": "user", "content": content})
 
     # Строим полный системный промпт с описанием инструментов
-    system_prompt = _build_system_prompt(agent, configured_tools)
+    system_prompt = _build_system_prompt(agent, all_agent_tools)
 
     # Вызываем LLM если настроен (OpenRouter или кастомный URL)
     assistant_content = ""
@@ -103,7 +105,7 @@ async def send_message(
     llm_url = "https://openrouter.ai/api/v1/chat/completions" if effective_model else agent.llm_url
 
     # Системные инструменты + пользовательские
-    system_tool_defs = _build_system_tool_definitions(agent, configured_tools)
+    system_tool_defs = _build_system_tool_definitions(agent, all_agent_tools)
     all_tool_defs = system_tool_defs + tool_definitions
 
     trigger_created = False
@@ -129,7 +131,7 @@ async def send_message(
                 # --- Системный инструмент: сохранить настройки ---
                 if tool_fn == "save_tool_settings":
                     sys_result, tool_msg_content = await _handle_save_settings(
-                        tool_args, agent, configured_tools, db
+                        tool_args, agent, all_agent_tools, db
                     )
                     tool_msg = ChatMessage(
                         agent_id=agent_id, role="tool",
@@ -145,7 +147,7 @@ async def send_message(
                 # --- Системный инструмент: создать автозапуск ---
                 elif tool_fn == "create_auto_trigger":
                     sys_result, tool_msg_content = await _handle_create_trigger(
-                        tool_args, agent, user_id, configured_tools, db
+                        tool_args, agent, user_id, all_agent_tools, db
                     )
                     trigger_created = sys_result
                     tool_msg = ChatMessage(
@@ -407,6 +409,15 @@ async def _handle_create_trigger(
 def _build_system_prompt(agent, configured_tools: list) -> str:
     """Строим полный системный промпт: базовый + скиллы + блок инструментов."""
     parts = []
+
+    # 0. Жёсткие правила поведения — всегда первые
+    parts.append(
+        "## Базовые правила\n"
+        "- Ты — специализированный AI-ассистент. Отвечай ТОЛЬКО по теме своего назначения и своих инструментов.\n"
+        "- НИКОГДА не перечисляй свои возможности списком (типа '1. Я умею... 2. Я могу...'). Это запрещено.\n"
+        "- Если пользователь спрашивает 'что ты умеешь' или 'расскажи о себе' — ответь одной фразой о своей специализации и доступных инструментах, без нумерованных списков.\n"
+        "- Отвечай тезисно и по делу. Без воды, без приветственных монологов."
+    )
 
     # 1. Базовый промпт агента
     if agent.prompt and agent.prompt.strip():

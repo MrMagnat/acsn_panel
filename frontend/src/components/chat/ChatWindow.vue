@@ -81,8 +81,8 @@
 
         <!-- Ответ ассистента -->
         <div v-else class="flex justify-start">
-          <div class="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm max-w-xs lg:max-w-md shadow-sm whitespace-pre-wrap">
-            {{ msg.content }}
+          <div class="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm max-w-xs lg:max-w-md shadow-sm prose prose-sm max-w-none"
+            v-html="renderMarkdown(msg.content)">
           </div>
         </div>
       </template>
@@ -175,7 +175,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { marked } from 'marked'
 import { chatApi } from '@/api/chat'
 import { agentsApi } from '@/api/agents'
 import { useToastStore } from '@/stores/toast'
@@ -305,8 +306,30 @@ async function sendMessage() {
   }
 }
 
+function renderMarkdown(text) {
+  if (!text) return ''
+  return marked.parse(text, { breaks: true, gfm: true })
+}
+
 async function scrollToBottom() {
   await nextTick()
   if (scrollEl.value) scrollEl.value.scrollTop = scrollEl.value.scrollHeight
 }
 </script>
+
+<style>
+.prose p { margin: 0 0 0.5em; }
+.prose p:last-child { margin-bottom: 0; }
+.prose ul { list-style: disc; padding-left: 1.25em; margin: 0.4em 0; }
+.prose ol { list-style: decimal; padding-left: 1.25em; margin: 0.4em 0; }
+.prose li { margin: 0.15em 0; }
+.prose strong { font-weight: 600; }
+.prose em { font-style: italic; }
+.prose code { background: #f3f4f6; border-radius: 4px; padding: 0.1em 0.3em; font-size: 0.85em; font-family: monospace; }
+.prose pre { background: #f3f4f6; border-radius: 8px; padding: 0.75em 1em; overflow-x: auto; margin: 0.5em 0; }
+.prose pre code { background: none; padding: 0; }
+.prose h1, .prose h2, .prose h3 { font-weight: 600; margin: 0.6em 0 0.3em; }
+.prose h1 { font-size: 1.1em; }
+.prose h2 { font-size: 1.05em; }
+.prose h3 { font-size: 1em; }
+</style>
