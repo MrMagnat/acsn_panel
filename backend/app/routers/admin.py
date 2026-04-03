@@ -76,6 +76,10 @@ async def list_users(
             plan=sub.plan if sub else "free",
             agents_count=agents_count,
             tools_count=tools_count,
+            ascn_user_id=user.ascn_user_id,
+            telegram=user.telegram,
+            phone=user.phone,
+            avatar_url=user.avatar_url,
         ))
     return response
 
@@ -114,6 +118,10 @@ async def update_user(
         plan=sub.plan if sub else "free",
         agents_count=len(user.agents),
         tools_count=sum(len(a.agent_tools) for a in user.agents),
+        ascn_user_id=user.ascn_user_id,
+        telegram=user.telegram,
+        phone=user.phone,
+        avatar_url=user.avatar_url,
     )
 
 

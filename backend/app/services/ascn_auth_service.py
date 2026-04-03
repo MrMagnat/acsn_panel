@@ -74,10 +74,17 @@ async def sync_from_token(ascn_token: str, db: AsyncSession) -> TokenResponse:
         result = await db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
 
+    telegram = profile.get("telegram")
+    phone = profile.get("phone")
+    avatar_url = profile.get("avatar")
+
     if user:
         # Обновляем данные
         user.ascn_user_id = ascn_id
         user.name = name
+        user.telegram = telegram
+        user.phone = phone
+        user.avatar_url = avatar_url
     else:
         # Создаём нового юзера (пароль заблокирован — только ASCN-логин)
         import uuid
@@ -86,6 +93,9 @@ async def sync_from_token(ascn_token: str, db: AsyncSession) -> TokenResponse:
             password_hash="__ascn__" + str(uuid.uuid4()),
             name=name,
             ascn_user_id=ascn_id,
+            telegram=telegram,
+            phone=phone,
+            avatar_url=avatar_url,
         )
         db.add(user)
         await db.flush()

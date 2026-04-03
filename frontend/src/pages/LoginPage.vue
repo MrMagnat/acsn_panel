@@ -13,6 +13,12 @@
           <label class="label">Пароль</label>
           <input v-model="form.password" type="password" class="input" placeholder="••••••••" required />
         </div>
+
+        <div v-if="loginError" class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          Неверный email или пароль. Если у вас нет аккаунта —
+          <a href="https://dev.ascn.ai/register" target="_blank" class="font-semibold underline hover:text-red-900">зарегистрируйтесь на dev.ascn.ai</a>
+        </div>
+
         <button type="submit" class="btn-primary w-full justify-center" :disabled="loading">
           <span v-if="loading">Вхожу...</span>
           <span v-else>Войти</span>
@@ -31,24 +37,24 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useToastStore } from '@/stores/toast'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
-const toast = useToastStore()
 
 const form = ref({ email: '', password: '' })
 const loading = ref(false)
+const loginError = ref(false)
 
 async function handleLogin() {
+  loginError.value = false
   loading.value = true
   try {
     await auth.ascnLogin(form.value.email, form.value.password)
     const redirect = route.query.redirect || '/cabinet/office'
     router.push(redirect)
   } catch (e) {
-    toast.error(e.response?.data?.detail || 'Неверный email или пароль')
+    loginError.value = true
   } finally {
     loading.value = false
   }

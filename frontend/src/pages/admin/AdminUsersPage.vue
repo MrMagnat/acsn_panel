@@ -29,8 +29,25 @@
         <tbody class="divide-y divide-gray-50">
           <tr v-for="user in users" :key="user.id" class="hover:bg-gray-50/50">
             <td class="px-4 py-3">
-              <div class="font-medium text-gray-900">{{ user.name }}</div>
-              <div class="text-gray-400 text-xs">{{ user.email }}</div>
+              <div class="flex items-center gap-3">
+                <img
+                  v-if="user.avatar_url"
+                  :src="user.avatar_url"
+                  class="w-8 h-8 rounded-full object-cover shrink-0"
+                  :alt="user.name"
+                />
+                <div v-else class="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center shrink-0 text-primary-600 font-semibold text-xs">
+                  {{ user.name.charAt(0).toUpperCase() }}
+                </div>
+                <div>
+                  <div class="font-medium text-gray-900">{{ user.name }}</div>
+                  <div class="text-gray-400 text-xs">{{ user.email }}</div>
+                  <div v-if="user.telegram || user.phone" class="text-gray-400 text-xs mt-0.5 flex gap-2">
+                    <span v-if="user.telegram">@{{ user.telegram }}</span>
+                    <span v-if="user.phone">{{ user.phone }}</span>
+                  </div>
+                </div>
+              </div>
             </td>
             <td class="px-4 py-3">
               <span class="badge-inactive capitalize">{{ user.plan }}</span>

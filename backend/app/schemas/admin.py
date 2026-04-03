@@ -13,6 +13,10 @@ class AdminUserResponse(BaseModel):
     plan: str
     agents_count: int
     tools_count: int
+    ascn_user_id: Optional[int] = None
+    telegram: Optional[str] = None
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

@@ -17,9 +17,6 @@
         <RouterLink to="/cabinet/history" class="nav-link" active-class="nav-link--active">
           <span>📋</span> История запусков
         </RouterLink>
-        <RouterLink to="/cabinet/settings" class="nav-link" active-class="nav-link--active">
-          <span>⚙️</span> Настройки
-        </RouterLink>
         <template v-if="auth.user?.is_admin">
           <div class="border-t border-gray-100 my-2"></div>
           <RouterLink to="/admin" class="nav-link text-purple-600" active-class="nav-link--active">
