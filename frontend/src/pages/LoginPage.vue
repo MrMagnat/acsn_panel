@@ -21,7 +21,7 @@
 
       <p class="mt-4 text-sm text-center text-gray-500">
         Нет аккаунта?
-        <RouterLink to="/register" class="text-primary-600 hover:underline font-medium">Зарегистрироваться</RouterLink>
+        <a href="https://ascn.ai/register" class="text-primary-600 hover:underline font-medium">Зарегистрироваться на ASCN</a>
       </p>
     </div>
   </div>
@@ -44,11 +44,11 @@ const loading = ref(false)
 async function handleLogin() {
   loading.value = true
   try {
-    await auth.login(form.value)
+    await auth.ascnLogin(form.value.email, form.value.password)
     const redirect = route.query.redirect || '/cabinet/office'
     router.push(redirect)
   } catch (e) {
-    toast.error(e.response?.data?.detail || 'Ошибка входа')
+    toast.error(e.response?.data?.detail || 'Неверный email или пароль')
   } finally {
     loading.value = false
   }

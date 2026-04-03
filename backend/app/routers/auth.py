@@ -7,6 +7,7 @@ from ..core.db import get_db
 from ..core.deps import get_current_user
 from ..core.security import hash_password
 from ..services import auth_service
+from ..services import ascn_auth_service
 from ..schemas.auth import RegisterRequest, LoginRequest, TokenResponse, RefreshRequest, UserResponse
 from ..models.user import User
 
@@ -16,6 +17,27 @@ router = APIRouter(prefix="/auth", tags=["Аутентификация"])
 class UpdateMeRequest(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None
+
+
+class AscnLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AscnTokenRequest(BaseModel):
+    token: str
+
+
+@router.post("/ascn-login", response_model=TokenResponse)
+async def ascn_login(data: AscnLoginRequest, db: AsyncSession = Depends(get_db)):
+    """Вход через ASCN (дев-режим): email + пароль → логин в ASCN API → наш JWT."""
+    return await ascn_auth_service.login_via_ascn(data.email, data.password, db)
+
+
+@router.post("/ascn-token", response_model=TokenResponse)
+async def ascn_token(data: AscnTokenRequest, db: AsyncSession = Depends(get_db)):
+    """Вход через ASCN (прод-режим): токен из куки → наш JWT."""
+    return await ascn_auth_service.sync_from_token(data.token, db)
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)

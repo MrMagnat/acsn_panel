@@ -28,6 +28,18 @@ export const useAuthStore = defineStore('auth', () => {
     await fetchMe()
   }
 
+  async function ascnLogin(email, password) {
+    const res = await authApi.ascnLogin(email, password)
+    _saveTokens(res.data)
+    await fetchMe()
+  }
+
+  async function ascnToken(token) {
+    const res = await authApi.ascnToken(token)
+    _saveTokens(res.data)
+    await fetchMe()
+  }
+
   async function refreshTokens() {
     const res = await authApi.refresh(refreshToken.value)
     _saveTokens(res.data)
@@ -48,5 +60,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('user')
   }
 
-  return { user, isAuthenticated, register, login, logout, refreshTokens, fetchMe }
+  return { user, isAuthenticated, register, login, ascnLogin, ascnToken, logout, refreshTokens, fetchMe }
 })
