@@ -1,54 +1,27 @@
 <template>
   <div class="flex flex-col flex-1">
     <!-- Настройки модели -->
-    <div class="px-4 py-2 border-b border-gray-100 flex items-center gap-2">
-      <select v-model="selectedModel" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 flex-1 min-w-0">
-        <option value="">— Выберите модель —</option>
-        <optgroup label="🆓 Бесплатные">
-          <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (бесплатно)</option>
-          <option value="deepseek/deepseek-r1:free">DeepSeek R1 (бесплатно)</option>
-          <option value="deepseek/deepseek-chat-v3-0324:free">DeepSeek V3 (бесплатно)</option>
-          <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (бесплатно)</option>
-          <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B (бесплатно)</option>
-          <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (бесплатно)</option>
-          <option value="qwen/qwen-2.5-72b-instruct:free">Qwen 2.5 72B (бесплатно)</option>
-        </optgroup>
-        <optgroup label="OpenAI">
-          <option value="openai/gpt-4o">GPT-4o</option>
-          <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-          <option value="openai/gpt-4.5-preview">GPT-4.5 Preview</option>
-          <option value="openai/o3-mini">o3-mini</option>
-          <option value="openai/o1">o1</option>
-        </optgroup>
-        <optgroup label="Anthropic">
-          <option value="anthropic/claude-3-7-sonnet">Claude 3.7 Sonnet</option>
-          <option value="anthropic/claude-3-5-sonnet">Claude 3.5 Sonnet</option>
-          <option value="anthropic/claude-3-5-haiku">Claude 3.5 Haiku</option>
-          <option value="anthropic/claude-3-opus">Claude 3 Opus</option>
-        </optgroup>
-        <optgroup label="Google">
-          <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
-          <option value="google/gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro</option>
-          <option value="google/gemini-flash-1.5">Gemini 1.5 Flash</option>
-          <option value="google/gemini-pro-1.5">Gemini 1.5 Pro</option>
-        </optgroup>
-        <optgroup label="DeepSeek">
-          <option value="deepseek/deepseek-r1">DeepSeek R1</option>
-          <option value="deepseek/deepseek-chat-v3-0324">DeepSeek V3</option>
-        </optgroup>
-        <optgroup label="Meta / Open Source">
-          <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
-          <option value="mistralai/mistral-large">Mistral Large</option>
-          <option value="mistralai/mistral-small-3.1-24b-instruct">Mistral Small 3.1</option>
-          <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B</option>
-        </optgroup>
+    <div class="px-4 py-2 border-b border-gray-100 flex flex-wrap items-center gap-2">
+      <!-- Провайдер -->
+      <select v-model="selectedProvider" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 w-32 shrink-0">
+        <option value="openrouter">OpenRouter</option>
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic</option>
+        <option value="deepseek">DeepSeek</option>
+        <option value="google">Google</option>
       </select>
-      <div class="relative flex-1 min-w-0">
+      <!-- Модель по провайдеру -->
+      <select v-model="selectedModel" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 flex-1 min-w-0">
+        <option value="">— модель —</option>
+        <option v-for="m in providerModels" :key="m.value" :value="m.value">{{ m.label }}</option>
+      </select>
+      <!-- API ключ -->
+      <div class="relative w-full">
         <input
           v-model="apiKey"
           :type="showKey ? 'text' : 'password'"
           class="text-xs border border-gray-200 rounded-lg px-2 py-1 w-full pr-7"
-          placeholder="sk-or-v1-..."
+          :placeholder="keyPlaceholder"
         />
         <button class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" @click="showKey = !showKey">
           {{ showKey ? '🙈' : '👁' }}
@@ -175,8 +148,57 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { marked } from 'marked'
+
+const PROVIDER_MODELS = {
+  openrouter: [
+    { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash (free)' },
+    { value: 'deepseek/deepseek-r1:free',         label: 'DeepSeek R1 (free)' },
+    { value: 'deepseek/deepseek-chat-v3-0324:free', label: 'DeepSeek V3 (free)' },
+    { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (free)' },
+    { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (free)' },
+    { value: 'openai/gpt-4o',                     label: 'GPT-4o' },
+    { value: 'openai/gpt-4o-mini',                label: 'GPT-4o Mini' },
+    { value: 'anthropic/claude-3-7-sonnet',        label: 'Claude 3.7 Sonnet' },
+    { value: 'anthropic/claude-3-5-sonnet',        label: 'Claude 3.5 Sonnet' },
+    { value: 'google/gemini-2.0-flash-001',        label: 'Gemini 2.0 Flash' },
+    { value: 'deepseek/deepseek-r1',               label: 'DeepSeek R1' },
+    { value: 'meta-llama/llama-3.3-70b-instruct',  label: 'Llama 3.3 70B' },
+    { value: 'mistralai/mistral-large',            label: 'Mistral Large' },
+  ],
+  openai: [
+    { value: 'gpt-4o',           label: 'GPT-4o' },
+    { value: 'gpt-4o-mini',      label: 'GPT-4o Mini' },
+    { value: 'gpt-4.5-preview',  label: 'GPT-4.5 Preview' },
+    { value: 'o3-mini',          label: 'o3-mini' },
+    { value: 'o1',               label: 'o1' },
+  ],
+  anthropic: [
+    { value: 'claude-3-7-sonnet-20250219', label: 'Claude 3.7 Sonnet' },
+    { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
+    { value: 'claude-3-5-haiku-20241022',  label: 'Claude 3.5 Haiku' },
+    { value: 'claude-3-opus-20240229',     label: 'Claude 3 Opus' },
+  ],
+  deepseek: [
+    { value: 'deepseek-chat',     label: 'DeepSeek V3 (Chat)' },
+    { value: 'deepseek-reasoner', label: 'DeepSeek R1 (Reasoner)' },
+  ],
+  google: [
+    { value: 'gemini-2.0-flash',   label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-2.0-pro-exp', label: 'Gemini 2.0 Pro' },
+    { value: 'gemini-1.5-flash',   label: 'Gemini 1.5 Flash' },
+    { value: 'gemini-1.5-pro',     label: 'Gemini 1.5 Pro' },
+  ],
+}
+
+const KEY_PLACEHOLDERS = {
+  openrouter: 'sk-or-v1-...',
+  openai:     'sk-...',
+  anthropic:  'sk-ant-...',
+  deepseek:   'sk-...',
+  google:     'AIza...',
+}
 import { chatApi } from '@/api/chat'
 import { agentsApi } from '@/api/agents'
 import { useToastStore } from '@/stores/toast'
@@ -198,9 +220,13 @@ const inputText = ref('')
 const scrollEl = ref(null)
 const lastEnergySpent = ref(0)
 const currentEnergyLeft = ref(props.energyLeft)
+const selectedProvider = ref(localStorage.getItem(`chat_provider_${props.agentId}`) || 'openrouter')
 const selectedModel = ref(localStorage.getItem(`chat_model_${props.agentId}`) || '')
 const apiKey = ref(localStorage.getItem(`chat_key_${props.agentId}`) || '')
 const showKey = ref(false)
+
+const providerModels = computed(() => PROVIDER_MODELS[selectedProvider.value] || [])
+const keyPlaceholder = computed(() => KEY_PLACEHOLDERS[selectedProvider.value] || 'API key...')
 
 // Попап результата
 const popupLogId = ref(null)
@@ -209,6 +235,12 @@ const popupToolName = ref('')
 const cancelling = ref(false)
 let popupPollTimer = null
 
+watch(selectedProvider, (v) => {
+  localStorage.setItem(`chat_provider_${props.agentId}`, v)
+  // сбрасываем модель если не подходит для нового провайдера
+  const models = PROVIDER_MODELS[v] || []
+  if (!models.find(m => m.value === selectedModel.value)) selectedModel.value = ''
+})
 watch(selectedModel, (v) => localStorage.setItem(`chat_model_${props.agentId}`, v))
 watch(apiKey, (v) => localStorage.setItem(`chat_key_${props.agentId}`, v))
 watch(() => props.energyLeft, (v) => { currentEnergyLeft.value = v })
@@ -280,7 +312,7 @@ async function sendMessage() {
   inputText.value = ''
   sending.value = true
   try {
-    const res = await chatApi.sendMessage(props.agentId, text, selectedModel.value || undefined, apiKey.value || undefined)
+    const res = await chatApi.sendMessage(props.agentId, text, selectedModel.value || undefined, apiKey.value || undefined, selectedProvider.value || undefined)
     messages.value.push(...res.data.messages)
     lastEnergySpent.value = res.data.energy_spent
     currentEnergyLeft.value = res.data.energy_left

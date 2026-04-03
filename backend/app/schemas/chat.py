@@ -7,6 +7,7 @@ class SendMessageRequest(BaseModel):
     content: str
     llm_model: Optional[str] = None
     llm_token: Optional[str] = None
+    llm_provider: Optional[str] = None   # openrouter | openai | anthropic | deepseek | google
 
 
 class ChatMessageResponse(BaseModel):

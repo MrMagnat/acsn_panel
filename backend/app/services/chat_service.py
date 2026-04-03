@@ -34,9 +34,19 @@ async def get_chat_history(agent_id: str, user_id: str, db: AsyncSession) -> lis
     return result.scalars().all()
 
 
+PROVIDER_URLS = {
+    "openrouter": "https://openrouter.ai/api/v1/chat/completions",
+    "openai":     "https://api.openai.com/v1/chat/completions",
+    "deepseek":   "https://api.deepseek.com/chat/completions",
+    "google":     "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    "anthropic":  "https://api.anthropic.com/v1/messages",
+}
+
+
 async def send_message(
     agent_id: str, user_id: str, content: str, db: AsyncSession,
     llm_model: str | None = None, llm_token: str | None = None,
+    llm_provider: str | None = None,
 ) -> ChatResponse:
     """Отправляем сообщение агенту, вызываем LLM и инструменты по необходимости."""
     # Загружаем агента с инструментами
@@ -102,7 +112,11 @@ async def send_message(
     assistant_content = ""
     effective_model = llm_model or agent.llm_model
     effective_token = llm_token or agent.llm_token
-    llm_url = "https://openrouter.ai/api/v1/chat/completions" if effective_model else agent.llm_url
+    effective_provider = llm_provider or "openrouter"
+    if effective_model:
+        llm_url = PROVIDER_URLS.get(effective_provider, PROVIDER_URLS["openrouter"])
+    else:
+        llm_url = agent.llm_url
 
     # Системные инструменты + пользовательские
     system_tool_defs = _build_system_tool_definitions(agent, all_agent_tools)
@@ -119,6 +133,7 @@ async def send_message(
                 tools=all_tool_defs,
                 llm_model=effective_model,
                 llm_token=effective_token,
+                provider=effective_provider,
             )
 
             if llm_response.get("tool_call"):
@@ -141,7 +156,7 @@ async def send_message(
                     new_messages.append(tool_msg)
                     messages.append({"role": "assistant", "content": raw_assistant.get("content"), "tool_calls": raw_assistant.get("tool_calls", [])})
                     messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": tool_msg_content})
-                    final = await _call_llm(llm_url=llm_url, system_prompt=system_prompt, messages=messages, tools=[], llm_model=effective_model, llm_token=effective_token)
+                    final = await _call_llm(llm_url=llm_url, system_prompt=system_prompt, messages=messages, tools=[], llm_model=effective_model, llm_token=effective_token, provider=effective_provider)
                     assistant_content = final.get("content", "") or "Настройки сохранены."
 
                 # --- Системный инструмент: создать автозапуск ---
@@ -158,7 +173,7 @@ async def send_message(
                     new_messages.append(tool_msg)
                     messages.append({"role": "assistant", "content": raw_assistant.get("content"), "tool_calls": raw_assistant.get("tool_calls", [])})
                     messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": tool_msg_content})
-                    final = await _call_llm(llm_url=llm_url, system_prompt=system_prompt, messages=messages, tools=[], llm_model=effective_model, llm_token=effective_token)
+                    final = await _call_llm(llm_url=llm_url, system_prompt=system_prompt, messages=messages, tools=[], llm_model=effective_model, llm_token=effective_token, provider=effective_provider)
                     assistant_content = final.get("content", "") or "Автозапуск создан."
 
                 # --- Пользовательский инструмент (webhook) ---
@@ -223,7 +238,7 @@ async def send_message(
                         messages.append({"role": "assistant", "content": raw_assistant.get("content"), "tool_calls": raw_assistant.get("tool_calls", [])})
                         messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": json.dumps(tool_result, ensure_ascii=False)})
 
-                        final = await _call_llm(llm_url=llm_url, system_prompt=system_prompt, messages=messages, tools=[], llm_model=effective_model, llm_token=effective_token)
+                        final = await _call_llm(llm_url=llm_url, system_prompt=system_prompt, messages=messages, tools=[], llm_model=effective_model, llm_token=effective_token, provider=effective_provider)
                         assistant_content = final.get("content", "") or f"Инструмент «{tool_name}» выполнен."
                     else:
                         assistant_content = llm_response.get("content", "")
@@ -535,9 +550,14 @@ def _build_tool_definitions(agent_tools: list) -> list[dict]:
 
 async def _call_llm(
     llm_url: str, system_prompt: str, messages: list, tools: list,
-    llm_model: str | None = None, llm_token: str | None = None
+    llm_model: str | None = None, llm_token: str | None = None,
+    provider: str = "openrouter",
 ) -> dict:
-    """Вызываем LLM через HTTP. Ожидаем OpenAI-совместимый API (OpenRouter или кастомный)."""
+    """Вызываем LLM. Поддерживаем OpenAI-совместимые API и Anthropic Messages API."""
+    if provider == "anthropic":
+        return await _call_anthropic(llm_url, system_prompt, messages, tools, llm_model, llm_token)
+
+    # ── OpenAI-совместимые провайдеры ──────────────────────────────────────────
     payload = {
         "messages": [{"role": "system", "content": system_prompt}] + messages if system_prompt else messages,
     }
@@ -550,8 +570,6 @@ async def _call_llm(
     headers = {"Content-Type": "application/json"}
     if llm_token:
         headers["Authorization"] = f"Bearer {llm_token}"
-
-    # OpenRouter требует HTTP-Referer и X-Title для идентификации приложения
     if "openrouter.ai" in llm_url:
         headers["HTTP-Referer"] = "http://85.193.84.93"
         headers["X-Title"] = "ASCN AI Platform"
@@ -559,7 +577,6 @@ async def _call_llm(
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(llm_url, json=payload, headers=headers)
         if not response.is_success:
-            # Показываем тело ответа для диагностики
             try:
                 err_body = response.json()
                 err_msg = err_body.get("error", {}).get("message", "") or str(err_body)
@@ -567,30 +584,136 @@ async def _call_llm(
                 err_msg = response.text[:300]
             raise httpx.HTTPStatusError(
                 f"{response.status_code}: {err_msg}",
-                request=response.request,
-                response=response,
+                request=response.request, response=response,
             )
         data = response.json()
 
-    # Парсим ответ в единый формат
     choice = data.get("choices", [{}])[0]
     message = choice.get("message", {})
-
     result = {
         "content": message.get("content", "") or "",
-        "raw_message": message,  # полный объект для последующего добавления в историю
+        "raw_message": message,
     }
-
-    # Проверяем наличие вызова инструмента
     tool_calls = message.get("tool_calls", [])
     if tool_calls:
         first_call = tool_calls[0]
         result["tool_call"] = {
-            "id": first_call.get("id", "call_0"),   # tool_call_id для ответа
+            "id": first_call.get("id", "call_0"),
             "name": first_call["function"]["name"],
             "arguments": json.loads(first_call["function"].get("arguments", "{}")),
         }
 
+    return result
+
+
+async def _call_anthropic(
+    llm_url: str, system_prompt: str, messages: list, tools: list,
+    llm_model: str | None, llm_token: str | None,
+) -> dict:
+    """Anthropic Messages API. Конвертируем OpenAI-формат ↔ Anthropic."""
+
+    # ── Конвертация инструментов OpenAI → Anthropic ─────────────────────────
+    anthropic_tools = []
+    for t in tools:
+        fn = t.get("function", {})
+        anthropic_tools.append({
+            "name": fn.get("name"),
+            "description": fn.get("description", ""),
+            "input_schema": fn.get("parameters", {"type": "object", "properties": {}}),
+        })
+
+    # ── Конвертация messages OpenAI → Anthropic ──────────────────────────────
+    anthropic_messages = []
+    for msg in messages:
+        role = msg.get("role")
+        content = msg.get("content")
+        tool_calls = msg.get("tool_calls", [])
+
+        if role == "system":
+            continue  # system идёт отдельно
+        elif role == "assistant":
+            parts = []
+            if content:
+                parts.append({"type": "text", "text": content})
+            for tc in tool_calls:
+                fn = tc.get("function", {})
+                try:
+                    inp = json.loads(fn.get("arguments", "{}"))
+                except Exception:
+                    inp = {}
+                parts.append({"type": "tool_use", "id": tc.get("id", "call_0"),
+                               "name": fn.get("name"), "input": inp})
+            anthropic_messages.append({"role": "assistant", "content": parts or (content or "")})
+        elif role == "tool":
+            # tool_result должен идти как user-сообщение
+            anthropic_messages.append({
+                "role": "user",
+                "content": [{"type": "tool_result",
+                              "tool_use_id": msg.get("tool_call_id", "call_0"),
+                              "content": content or ""}],
+            })
+        else:
+            anthropic_messages.append({"role": role, "content": content or ""})
+
+    payload: dict = {
+        "model": llm_model or "claude-3-5-haiku-20241022",
+        "max_tokens": 4096,
+        "messages": anthropic_messages,
+    }
+    if system_prompt:
+        payload["system"] = system_prompt
+    if anthropic_tools:
+        payload["tools"] = anthropic_tools
+
+    headers = {
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+        "x-api-key": llm_token or "",
+    }
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.post(llm_url, json=payload, headers=headers)
+        if not response.is_success:
+            try:
+                err_body = response.json()
+                err_msg = err_body.get("error", {}).get("message", "") or str(err_body)
+            except Exception:
+                err_msg = response.text[:300]
+            raise httpx.HTTPStatusError(
+                f"{response.status_code}: {err_msg}",
+                request=response.request, response=response,
+            )
+        data = response.json()
+
+    # ── Парсинг ответа Anthropic → единый формат ─────────────────────────────
+    content_blocks = data.get("content", [])
+    text_content = " ".join(b.get("text", "") for b in content_blocks if b.get("type") == "text")
+    tool_use = next((b for b in content_blocks if b.get("type") == "tool_use"), None)
+
+    # Сохраняем raw_message в OpenAI-формате для совместимости с историей
+    raw_tool_calls = []
+    if tool_use:
+        raw_tool_calls = [{
+            "id": tool_use.get("id", "call_0"),
+            "function": {
+                "name": tool_use.get("name"),
+                "arguments": json.dumps(tool_use.get("input", {}), ensure_ascii=False),
+            },
+        }]
+
+    result: dict = {
+        "content": text_content,
+        "raw_message": {
+            "content": text_content,
+            "tool_calls": raw_tool_calls,
+        },
+    }
+    if tool_use:
+        result["tool_call"] = {
+            "id": tool_use.get("id", "call_0"),
+            "name": tool_use.get("name"),
+            "arguments": tool_use.get("input", {}),
+        }
     return result
 
 

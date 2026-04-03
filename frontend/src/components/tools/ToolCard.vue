@@ -44,7 +44,7 @@
           </div>
           <button class="text-gray-400 hover:text-gray-600 text-xl leading-none" @click="openModal = false">✕</button>
         </div>
-        <div class="px-6 py-5 space-y-4">
+        <div class="px-6 py-5 space-y-4 overflow-y-auto" style="max-height: 60vh">
           <div v-if="!agentTool.tool.fields?.length" class="text-sm text-gray-400 text-center py-4">
             Этот инструмент не требует настройки
           </div>
