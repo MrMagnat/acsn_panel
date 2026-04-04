@@ -10,7 +10,7 @@
       <div class="text-gray-400">Загрузка...</div>
     </div>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div v-else id="agent-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       <!-- Плитки существующих агентов -->
       <AgentCard
         v-for="agent in agentsStore.agents"
@@ -21,6 +21,7 @@
 
       <!-- Плитка добавления агента -->
       <button
+        id="add-agent-btn"
         class="card p-6 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-gray-200 hover:border-primary-400 hover:bg-primary-50 transition-colors min-h-[160px] cursor-pointer"
         @click="handleAddClick"
       >

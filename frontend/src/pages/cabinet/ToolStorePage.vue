@@ -5,7 +5,7 @@
 
     <div v-if="toolsStore.loading" class="text-center py-16 text-gray-400">Загрузка...</div>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div v-else id="tools-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <div
         v-for="tool in toolsStore.tools"
         :key="tool.id"

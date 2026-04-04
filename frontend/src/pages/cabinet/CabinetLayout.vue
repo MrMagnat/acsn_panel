@@ -8,13 +8,13 @@
       </div>
 
       <nav class="flex-1 px-3 py-4 space-y-1">
-        <RouterLink to="/cabinet/office" class="nav-link" active-class="nav-link--active">
+        <RouterLink id="nav-office" to="/cabinet/office" class="nav-link" active-class="nav-link--active">
           <span>🏠</span> Мой офис
         </RouterLink>
-        <RouterLink to="/cabinet/tools" class="nav-link" active-class="nav-link--active">
+        <RouterLink id="nav-tools" to="/cabinet/tools" class="nav-link" active-class="nav-link--active">
           <span>🔧</span> Инструменты
         </RouterLink>
-        <RouterLink to="/cabinet/history" class="nav-link" active-class="nav-link--active">
+        <RouterLink id="nav-history" to="/cabinet/history" class="nav-link" active-class="nav-link--active">
           <span>📋</span> История запусков
         </RouterLink>
         <template v-if="auth.user?.is_admin">
@@ -26,7 +26,7 @@
       </nav>
 
       <!-- Энергия аккаунта -->
-      <div v-if="subStore.data" class="px-4 py-3 border-t border-gray-100">
+      <div v-if="subStore.data" id="user-energy" class="px-4 py-3 border-t border-gray-100">
         <div class="flex justify-between items-center mb-1">
           <span class="text-xs text-gray-500">⚡ Токены</span>
           <span class="text-xs font-medium text-gray-700">{{ subStore.energyLeft }} / {{ subStore.energyPerWeek }}</span>
@@ -44,7 +44,14 @@
       <div class="px-4 py-4 border-t border-gray-100">
         <div class="text-xs text-gray-500 mb-1">{{ auth.user?.name }}</div>
         <div class="text-xs text-gray-400 mb-3">{{ auth.user?.email }}</div>
-        <button class="btn-secondary text-xs w-full justify-center" @click="handleLogout">Выйти</button>
+        <div class="flex gap-2">
+          <button class="btn-secondary text-xs flex-1 justify-center" @click="handleLogout">Выйти</button>
+          <button
+            class="text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+            title="Помощь"
+            @click="openHelp"
+          >❓</button>
+        </div>
       </div>
     </aside>
 
@@ -52,6 +59,19 @@
     <main class="flex-1 overflow-auto">
       <RouterView />
     </main>
+
+    <!-- Онбординг -->
+    <OnboardingWelcomeModal
+      v-if="onb.showWelcome.value"
+      :support-url="onb.config.value?.support_url"
+      @start="onb.startTour()"
+      @skip="onb.closeWelcome()"
+    />
+    <OnboardingVideoModal
+      v-if="onb.showVideo.value"
+      :video-url="onb.config.value?.video_url"
+      @close="onb.showVideo.value = false"
+    />
   </div>
 </template>
 
@@ -60,16 +80,28 @@ import { onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { useSubscriptionStore } from '@/stores/subscription'
+import { useOnboarding } from '@/composables/useOnboarding'
+import OnboardingWelcomeModal from '@/components/onboarding/OnboardingWelcomeModal.vue'
+import OnboardingVideoModal from '@/components/onboarding/OnboardingVideoModal.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
 const subStore = useSubscriptionStore()
+const onb = useOnboarding()
 
-onMounted(() => subStore.fetch())
+onMounted(async () => {
+  subStore.fetch()
+  await onb.loadConfig()
+  onb.checkAutoShow()
+})
 
 function handleLogout() {
   auth.logout()
   router.push('/login')
+}
+
+function openHelp() {
+  onb.openWelcome()
 }
 </script>
 

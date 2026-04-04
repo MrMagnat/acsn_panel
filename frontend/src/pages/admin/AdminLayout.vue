@@ -15,6 +15,9 @@
         <RouterLink to="/admin/tools" class="nav-link" active-class="nav-link--active">
           <span>🔧</span> Инструменты
         </RouterLink>
+        <RouterLink to="/admin/onboarding" class="nav-link" active-class="nav-link--active">
+          <span>🎓</span> Онбординг
+        </RouterLink>
         <div class="border-t border-gray-100 my-2"></div>
         <RouterLink to="/cabinet/office" class="nav-link text-gray-400">
           <span>←</span> Личный кабинет

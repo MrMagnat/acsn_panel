@@ -1,12 +1,15 @@
+import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from sqlalchemy.orm import selectinload
-from typing import Optional
+from typing import Optional, Any
 
 from ..core.db import get_db
 from ..core.deps import get_current_admin
 from ..models.user import User
+from ..models.setting import Setting
+from ..routers.onboarding import DEFAULT_CONFIG
 from ..models.subscription import Subscription
 from ..models.agent import UserAgent
 from ..models.agent_tool import AgentTool
@@ -187,6 +190,36 @@ async def adjust_user_energy(
         energy_per_week=subscription.energy_per_week,
         transactions=txs.scalars().all(),
     )
+
+
+# ─── Онбординг ───────────────────────────────────────────────────────────────
+
+@router.get("/onboarding")
+async def get_onboarding_config(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    result = await db.execute(select(Setting).where(Setting.key == "onboarding"))
+    setting = result.scalar_one_or_none()
+    if setting and setting.value:
+        return json.loads(setting.value)
+    return DEFAULT_CONFIG
+
+
+@router.put("/onboarding")
+async def save_onboarding_config(
+    config: dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    result = await db.execute(select(Setting).where(Setting.key == "onboarding"))
+    setting = result.scalar_one_or_none()
+    if setting:
+        setting.value = json.dumps(config, ensure_ascii=False)
+    else:
+        db.add(Setting(key="onboarding", value=json.dumps(config, ensure_ascii=False)))
+    await db.flush()
+    return config
 
 
 # ─── Шаблонные агенты ────────────────────────────────────────────────────────

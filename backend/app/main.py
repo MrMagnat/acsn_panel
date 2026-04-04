@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.db import AsyncSessionLocal
-from .routers import auth, agents, tools, chat, triggers, admin, webhooks, subscription, run_logs
+from .routers import auth, agents, tools, chat, triggers, admin, webhooks, subscription, run_logs, onboarding
 from .services.scheduler_service import start_scheduler, stop_scheduler, get_scheduler, schedule_trigger
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
@@ -80,6 +80,7 @@ app.include_router(admin.router)
 app.include_router(webhooks.router)
 app.include_router(subscription.router)
 app.include_router(run_logs.router)
+app.include_router(onboarding.router)
 
 
 @app.get("/health")
