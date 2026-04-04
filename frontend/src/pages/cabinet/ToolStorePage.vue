@@ -62,6 +62,48 @@
               <textarea v-else-if="field.field_type === 'json'" v-model="runFields[field.field_name]"
                 class="input resize-none h-24 font-mono text-xs"
                 :placeholder="field.hint || '{ key: value }'"></textarea>
+              <!-- array -->
+              <div v-else-if="field.field_type === 'array'">
+                <textarea
+                  v-model="runFields[field.field_name]"
+                  class="input resize-none h-28 font-mono text-xs"
+                  :placeholder="field.hint || 'Один элемент на строку:\nэлемент1\nэлемент2\nэлемент3'"
+                ></textarea>
+                <p class="text-xs text-gray-400 mt-1">Каждая строка — отдельный элемент массива</p>
+              </div>
+              <!-- base — выбор базы знаний -->
+              <div v-else-if="field.field_type === 'base'" class="space-y-2">
+                <select
+                  class="input"
+                  :value="baseSelections[field.field_name]?.kbId || ''"
+                  @change="onBaseKbSelect(field.field_name, $event.target.value)"
+                >
+                  <option value="">— выберите базу знаний —</option>
+                  <option v-for="kb in userKbs" :key="kb.id" :value="kb.id">{{ kb.name }}</option>
+                </select>
+                <div v-if="baseSelections[field.field_name]?.kbId && kbData[baseSelections[field.field_name].kbId]" class="border border-gray-100 rounded-lg p-3 bg-gray-50">
+                  <p class="text-xs text-gray-500 mb-2 font-medium">Выберите колонки для отправки:</p>
+                  <div class="space-y-1">
+                    <label
+                      v-for="col in kbData[baseSelections[field.field_name].kbId].fields"
+                      :key="col.id"
+                      class="flex items-center gap-2 text-sm cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        :value="col.name"
+                        v-model="baseSelections[field.field_name].columns"
+                        class="w-4 h-4"
+                      />
+                      {{ col.name }}
+                    </label>
+                  </div>
+                  <p v-if="baseSelections[field.field_name].columns.length" class="text-xs text-green-600 mt-2">
+                    → {{ kbData[baseSelections[field.field_name].kbId].records.length }} строк ×
+                    {{ baseSelections[field.field_name].columns.length }} колонок
+                  </p>
+                </div>
+              </div>
               <!-- text / url / number -->
               <input v-else
                 v-model="runFields[field.field_name]"
@@ -69,7 +111,7 @@
                 :placeholder="field.hint || field.field_name"
                 :type="field.field_type === 'number' ? 'number' : field.field_type === 'url' ? 'url' : 'text'"
               />
-              <p v-if="field.hint && field.field_type !== 'json'" class="text-xs text-gray-400 mt-1">{{ field.hint }}</p>
+              <p v-if="field.hint && !['json','array','base'].includes(field.field_type)" class="text-xs text-gray-400 mt-1">{{ field.hint }}</p>
             </div>
           </div>
           <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
@@ -141,6 +183,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useToolsStore } from '@/stores/tools'
 import { toolsApi } from '@/api/tools'
 import { agentsApi } from '@/api/agents'
+import { kbApi } from '@/api/knowledge-base'
 import { useToastStore } from '@/stores/toast'
 import { useSubscriptionStore } from '@/stores/subscription'
 import ResultRenderer from '@/components/tools/ResultRenderer.vue'
@@ -152,6 +195,11 @@ const subStore = useSubscriptionStore()
 const runModal = ref(null)
 const runFields = reactive({})
 const launching = ref(false)
+
+// Base knowledge fields
+const userKbs = ref([])
+const baseSelections = reactive({})  // { [fieldName]: { kbId, columns: [] } }
+const kbData = reactive({})          // { [kbId]: { fields: [], records: [] } }
 
 const showResult = ref(false)
 const runLog = ref(null)
@@ -168,11 +216,37 @@ function parseOptions(options) {
   try { return JSON.parse(options) } catch { return [] }
 }
 
-function openRunModal(tool) {
+async function openRunModal(tool) {
   runModal.value = tool
   Object.keys(runFields).forEach(k => delete runFields[k])
+  Object.keys(baseSelections).forEach(k => delete baseSelections[k])
   if (tool.fields) {
-    tool.fields.forEach(f => { runFields[f.field_name] = '' })
+    tool.fields.forEach(f => {
+      if (f.field_type === 'base') {
+        baseSelections[f.field_name] = { kbId: '', columns: [] }
+      } else {
+        runFields[f.field_name] = ''
+      }
+    })
+  }
+  // Загружаем список баз если есть base-поля
+  const hasBase = tool.fields?.some(f => f.field_type === 'base')
+  if (hasBase && !userKbs.value.length) {
+    try {
+      const res = await kbApi.list()
+      userKbs.value = res.data
+    } catch { /**/ }
+  }
+}
+
+async function onBaseKbSelect(fieldName, kbId) {
+  baseSelections[fieldName].kbId = kbId
+  baseSelections[fieldName].columns = []
+  if (kbId && !kbData[kbId]) {
+    try {
+      const res = await kbApi.get(kbId)
+      kbData[kbId] = res.data
+    } catch { /**/ }
   }
 }
 
@@ -185,8 +259,35 @@ async function launchTool() {
   launching.value = true
   const tool = runModal.value
   try {
-    const res = await toolsApi.runStandalone(tool.id, { ...runFields })
+    // Собираем финальные значения
+    const fieldValues = { ...runFields }
+
+    for (const field of (tool.fields || [])) {
+      if (field.field_type === 'array') {
+        const raw = runFields[field.field_name] || ''
+        fieldValues[field.field_name] = raw.split('\n').map(s => s.trim()).filter(Boolean)
+      } else if (field.field_type === 'base') {
+        const sel = baseSelections[field.field_name]
+        if (!sel?.kbId) {
+          toast.error(`Выберите базу знаний для поля «${field.field_name}»`)
+          launching.value = false
+          return
+        }
+        if (!sel.columns.length) {
+          toast.error(`Выберите хотя бы одну колонку для поля «${field.field_name}»`)
+          launching.value = false
+          return
+        }
+        const kb = kbData[sel.kbId]
+        fieldValues[field.field_name] = kb.records.map(r =>
+          sel.columns.map(col => r.data[col] ?? '')
+        )
+      }
+    }
+
+    const res = await toolsApi.runStandalone(tool.id, fieldValues)
     if (res.data.energy_left !== undefined) subStore.setEnergyLeft(res.data.energy_left)
+
     resultToolName.value = tool.name
     closeRunModal()
     showResult.value = true

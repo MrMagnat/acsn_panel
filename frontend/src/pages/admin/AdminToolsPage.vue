@@ -101,6 +101,8 @@
                     <option value="number">number — число</option>
                     <option value="json">json — объект JSON</option>
                     <option value="select">select — выбор из списка</option>
+                    <option value="array">array — массив</option>
+                    <option value="base">base — база знаний</option>
                   </select>
                 </div>
                 <div class="flex flex-col">
@@ -128,6 +130,14 @@
               <!-- Подсказка для json -->
               <div v-if="field.field_type === 'json'" class="text-xs text-blue-500 bg-blue-50 rounded px-2 py-1">
                 Пользователь введёт JSON-объект. В webhook отправится как строка.
+              </div>
+              <!-- Подсказка для array -->
+              <div v-if="field.field_type === 'array'" class="text-xs text-purple-600 bg-purple-50 rounded px-2 py-1">
+                Пользователь введёт элементы построчно → в webhook отправится как <code>["элемент1", "элемент2"]</code>
+              </div>
+              <!-- Подсказка для base -->
+              <div v-if="field.field_type === 'base'" class="text-xs text-green-700 bg-green-50 rounded px-2 py-1">
+                Пользователь выберет свою базу знаний и колонки при запуске → в webhook отправится как <code>[[val1, val2], [val1, val2]]</code>
               </div>
               <!-- is_runtime toggle -->
               <div class="flex items-center gap-2 pt-1 border-t border-gray-200">

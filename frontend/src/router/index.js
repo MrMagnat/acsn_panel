@@ -17,6 +17,8 @@ const routes = [
       { path: 'agents/:id', name: 'AgentDetail', component: () => import('@/pages/cabinet/AgentDetailPage.vue') },
 { path: 'tools', name: 'ToolStore', component: () => import('@/pages/cabinet/ToolStorePage.vue') },
       { path: 'history', name: 'RunHistory', component: () => import('@/pages/cabinet/RunHistoryPage.vue') },
+      { path: 'knowledge-base', name: 'KnowledgeBase', component: () => import('@/pages/cabinet/KnowledgeBasePage.vue') },
+      { path: 'knowledge-base/:id', name: 'KnowledgeBaseDetail', component: () => import('@/pages/cabinet/KnowledgeBaseDetailPage.vue') },
     ],
   },
 
