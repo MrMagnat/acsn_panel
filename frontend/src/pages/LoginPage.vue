@@ -16,7 +16,7 @@
 
         <div v-if="loginError" class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           Неверный email или пароль. Если у вас нет аккаунта —
-          <a href="https://dev.ascn.ai/register" target="_blank" class="font-semibold underline hover:text-red-900">зарегистрируйтесь на dev.ascn.ai</a>
+          <a href="https://dev.ascn.ai/ru/auth/register" target="_blank" class="font-semibold underline hover:text-red-900">зарегистрируйтесь на dev.ascn.ai</a>
         </div>
 
         <button type="submit" class="btn-primary w-full justify-center" :disabled="loading">
@@ -27,7 +27,7 @@
 
       <p class="mt-4 text-sm text-center text-gray-500">
         Нет аккаунта?
-        <a href="https://ascn.ai/register" class="text-primary-600 hover:underline font-medium">Зарегистрироваться на ASCN</a>
+        <a href="https://dev.ascn.ai/ru/auth/register" target="_blank" class="text-primary-600 hover:underline font-medium">Зарегистрироваться на ASCN</a>
       </p>
     </div>
   </div>
