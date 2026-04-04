@@ -71,6 +71,53 @@
                 ></textarea>
                 <p class="text-xs text-gray-400 mt-1">Каждая строка — отдельный элемент массива</p>
               </div>
+              <!-- ai_token — ИИ оператор -->
+              <div v-else-if="field.field_type === 'ai_token'" class="space-y-3">
+                <div class="flex gap-2">
+                  <button
+                    class="flex-1 py-2 text-xs rounded-lg border transition-colors"
+                    :class="(aiTokenSelections[field.field_name]?.mode || 'ascn') === 'ascn' ? 'border-orange-400 bg-orange-50 text-orange-700 font-medium' : 'border-gray-200 text-gray-500'"
+                    @click="setAiTokenMode(field.field_name, 'ascn')"
+                  >✦ ASCN (встроенный)</button>
+                  <button
+                    class="flex-1 py-2 text-xs rounded-lg border transition-colors"
+                    :class="aiTokenSelections[field.field_name]?.mode === 'own' ? 'border-primary-400 bg-primary-50 text-primary-700 font-medium' : 'border-gray-200 text-gray-500'"
+                    @click="setAiTokenMode(field.field_name, 'own')"
+                  >🔑 Свой ключ</button>
+                </div>
+                <!-- ASCN mode -->
+                <div v-if="(aiTokenSelections[field.field_name]?.mode || 'ascn') === 'ascn'">
+                  <select
+                    class="input"
+                    v-model="aiTokenSelections[field.field_name].model"
+                  >
+                    <option value="">— выберите модель —</option>
+                    <option v-for="m in ascnModels" :key="m.id" :value="m.id">
+                      {{ m.name }} · ${{ (m.price_usd / 100).toFixed(2) }}/сообщ.
+                    </option>
+                  </select>
+                  <p class="text-xs text-gray-400 mt-1">Баланс: <span :class="subStore.balanceUsd > 0 ? 'text-green-600' : 'text-red-500'">{{ subStore.balanceFormatted }}</span></p>
+                </div>
+                <!-- Own key mode -->
+                <div v-else class="space-y-2">
+                  <input
+                    v-model="aiTokenSelections[field.field_name].operator"
+                    class="input text-xs"
+                    placeholder="Оператор (напр. openrouter)"
+                  />
+                  <input
+                    v-model="aiTokenSelections[field.field_name].model"
+                    class="input text-xs"
+                    placeholder="Модель (напр. openai/gpt-4o-mini)"
+                  />
+                  <input
+                    v-model="aiTokenSelections[field.field_name].token"
+                    class="input text-xs font-mono"
+                    placeholder="API ключ (sk-or-...)"
+                    type="password"
+                  />
+                </div>
+              </div>
               <!-- base — выбор базы знаний -->
               <div v-else-if="field.field_type === 'base'" class="space-y-2">
                 <select
@@ -111,7 +158,7 @@
                 :placeholder="field.hint || field.field_name"
                 :type="field.field_type === 'number' ? 'number' : field.field_type === 'url' ? 'url' : 'text'"
               />
-              <p v-if="field.hint && !['json','array','base'].includes(field.field_type)" class="text-xs text-gray-400 mt-1">{{ field.hint }}</p>
+              <p v-if="field.hint && !['json','array','base','ai_token'].includes(field.field_type)" class="text-xs text-gray-400 mt-1">{{ field.hint }}</p>
             </div>
           </div>
           <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
@@ -201,6 +248,10 @@ const userKbs = ref([])
 const baseSelections = reactive({})  // { [fieldName]: { kbId, columns: [] } }
 const kbData = reactive({})          // { [kbId]: { fields: [], records: [] } }
 
+// AI token fields
+const ascnModels = ref([])
+const aiTokenSelections = reactive({})  // { [fieldName]: { mode, model, operator, token } }
+
 const showResult = ref(false)
 const runLog = ref(null)
 const resultToolName = ref('')
@@ -208,7 +259,13 @@ const cancelling = ref(false)
 let currentLogId = null
 let pollTimer = null
 
-onMounted(() => toolsStore.fetchTools())
+onMounted(async () => {
+  toolsStore.fetchTools()
+  try {
+    const res = await import('@/api/http').then(m => m.default.get('/onboarding/ascn-models'))
+    ascnModels.value = res.data
+  } catch { /**/ }
+})
 onUnmounted(stopPolling)
 
 function parseOptions(options) {
@@ -216,14 +273,21 @@ function parseOptions(options) {
   try { return JSON.parse(options) } catch { return [] }
 }
 
+function setAiTokenMode(fieldName, mode) {
+  aiTokenSelections[fieldName] = { mode, model: '', operator: 'openrouter', token: '' }
+}
+
 async function openRunModal(tool) {
   runModal.value = tool
   Object.keys(runFields).forEach(k => delete runFields[k])
   Object.keys(baseSelections).forEach(k => delete baseSelections[k])
+  Object.keys(aiTokenSelections).forEach(k => delete aiTokenSelections[k])
   if (tool.fields) {
     tool.fields.forEach(f => {
       if (f.field_type === 'base') {
         baseSelections[f.field_name] = { kbId: '', columns: [] }
+      } else if (f.field_type === 'ai_token') {
+        aiTokenSelections[f.field_name] = { mode: 'ascn', model: '', operator: 'openrouter', token: '' }
       } else {
         runFields[f.field_name] = ''
       }
@@ -266,6 +330,23 @@ async function launchTool() {
       if (field.field_type === 'array') {
         const raw = runFields[field.field_name] || ''
         fieldValues[field.field_name] = raw.split('\n').map(s => s.trim()).filter(Boolean)
+      } else if (field.field_type === 'ai_token') {
+        const sel = aiTokenSelections[field.field_name]
+        if (!sel?.model) {
+          toast.error(`Выберите модель для поля «${field.field_name}»`)
+          launching.value = false
+          return
+        }
+        if (sel.mode === 'ascn') {
+          fieldValues[field.field_name] = { operator: 'ascn', model: sel.model, token: '__ascn__' }
+        } else {
+          if (!sel.token) {
+            toast.error(`Введите API ключ для поля «${field.field_name}»`)
+            launching.value = false
+            return
+          }
+          fieldValues[field.field_name] = { operator: sel.operator, model: sel.model, token: sel.token }
+        }
       } else if (field.field_type === 'base') {
         const sel = baseSelections[field.field_name]
         if (!sel?.kbId) {

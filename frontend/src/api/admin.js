@@ -15,6 +15,7 @@ export const adminApi = {
   // Энергия пользователей
   getUserEnergy: (userId) => http.get(`/admin/users/${userId}/energy`),
   adjustUserEnergy: (userId, data) => http.post(`/admin/users/${userId}/energy`, data),
+  adjustUserBalance: (userId, data) => http.post(`/admin/users/${userId}/balance-usd`, data),
 
   // Инструменты
   getTools: () => http.get('/admin/tools'),

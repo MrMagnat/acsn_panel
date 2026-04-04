@@ -4,30 +4,66 @@
     <div class="px-4 py-2 border-b border-gray-100 flex flex-wrap items-center gap-2">
       <!-- Провайдер -->
       <select v-model="selectedProvider" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 w-32 shrink-0">
+        <option value="ascn">✦ ASCN</option>
         <option value="openrouter">OpenRouter</option>
         <option value="openai">OpenAI</option>
         <option value="anthropic">Anthropic</option>
         <option value="deepseek">DeepSeek</option>
         <option value="google">Google</option>
       </select>
-      <!-- Модель по провайдеру -->
-      <select v-model="selectedModel" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 flex-1 min-w-0">
-        <option value="">— модель —</option>
-        <option v-for="m in providerModels" :key="m.value" :value="m.value">{{ m.label }}</option>
-      </select>
-      <!-- API ключ -->
-      <div class="relative w-full">
-        <input
-          v-model="apiKey"
-          :type="showKey ? 'text' : 'password'"
-          class="text-xs border border-gray-200 rounded-lg px-2 py-1 w-full pr-7"
-          :placeholder="keyPlaceholder"
-        />
-        <button class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" @click="showKey = !showKey">
-          {{ showKey ? '🙈' : '👁' }}
-        </button>
-      </div>
+
+      <!-- ASCN: модели с ценами + баланс -->
+      <template v-if="selectedProvider === 'ascn'">
+        <select v-model="selectedModel" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 flex-1 min-w-0">
+          <option value="">— модель —</option>
+          <option v-for="m in ascnModels" :key="m.id" :value="m.id">
+            {{ m.name }} — ${{ (m.price_usd / 100).toFixed(2) }}/сообщ.
+          </option>
+        </select>
+        <span class="text-xs px-2 py-0.5 rounded-full" :class="subStore.balanceUsd > 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'">
+          {{ subStore.balanceFormatted }}
+        </span>
+      </template>
+
+      <!-- Другие провайдеры: обычный выбор модели + ключ -->
+      <template v-else>
+        <select v-model="selectedModel" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 flex-1 min-w-0">
+          <option value="">— модель —</option>
+          <option v-for="m in providerModels" :key="m.value" :value="m.value">{{ m.label }}</option>
+        </select>
+        <div class="relative w-full">
+          <input
+            v-model="apiKey"
+            :type="showKey ? 'text' : 'password'"
+            class="text-xs border border-gray-200 rounded-lg px-2 py-1 w-full pr-7"
+            :placeholder="keyPlaceholder"
+          />
+          <button class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" @click="showKey = !showKey">
+            {{ showKey ? '🙈' : '👁' }}
+          </button>
+        </div>
+      </template>
     </div>
+
+    <!-- Попап: нулевой баланс -->
+    <Teleport to="body">
+      <div v-if="showBalancePopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-7 text-center">
+          <div class="text-4xl mb-3">💳</div>
+          <h2 class="text-lg font-bold text-gray-900 mb-2">Баланс AI-токенов исчерпан</h2>
+          <p class="text-gray-500 text-sm mb-6">Пополните баланс или подключите собственный API-ключ</p>
+          <div class="space-y-3">
+            <a href="https://t.me/ascnai_nocode" target="_blank" class="btn-primary w-full justify-center flex" @click="showBalancePopup = false">
+              💰 Пополнить баланс
+            </a>
+            <button class="w-full py-2 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl transition-colors" @click="switchToOwnKey">
+              Подключить свой ключ
+            </button>
+            <button class="text-xs text-gray-400 hover:text-gray-600 w-full" @click="showBalancePopup = false">Закрыть</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- История сообщений -->
     <div ref="scrollEl" class="flex-1 overflow-y-auto p-4 space-y-3" style="min-height: 300px; max-height: 400px">
@@ -201,6 +237,7 @@ const KEY_PLACEHOLDERS = {
 }
 import { chatApi } from '@/api/chat'
 import { agentsApi } from '@/api/agents'
+import http from '@/api/http'
 import { useToastStore } from '@/stores/toast'
 import { useSubscriptionStore } from '@/stores/subscription'
 import ResultRenderer from '@/components/tools/ResultRenderer.vue'
@@ -220,13 +257,22 @@ const inputText = ref('')
 const scrollEl = ref(null)
 const lastEnergySpent = ref(0)
 const currentEnergyLeft = ref(props.energyLeft)
-const selectedProvider = ref(localStorage.getItem(`chat_provider_${props.agentId}`) || 'openrouter')
+const selectedProvider = ref(localStorage.getItem(`chat_provider_${props.agentId}`) || 'ascn')
 const selectedModel = ref(localStorage.getItem(`chat_model_${props.agentId}`) || '')
 const apiKey = ref(localStorage.getItem(`chat_key_${props.agentId}`) || '')
 const showKey = ref(false)
+const showBalancePopup = ref(false)
+const ascnModels = ref([])
 
 const providerModels = computed(() => PROVIDER_MODELS[selectedProvider.value] || [])
 const keyPlaceholder = computed(() => KEY_PLACEHOLDERS[selectedProvider.value] || 'API key...')
+
+
+function switchToOwnKey() {
+  showBalancePopup.value = false
+  selectedProvider.value = 'openrouter'
+  selectedModel.value = ''
+}
 
 // Попап результата
 const popupLogId = ref(null)
@@ -246,6 +292,15 @@ watch(apiKey, (v) => localStorage.setItem(`chat_key_${props.agentId}`, v))
 watch(() => props.energyLeft, (v) => { currentEnergyLeft.value = v })
 
 onMounted(async () => {
+  // Загружаем ASCN-модели
+  try {
+    const res = await http.get('/onboarding/ascn-models')
+    ascnModels.value = res.data
+    if (!selectedModel.value && selectedProvider.value === 'ascn' && ascnModels.value.length) {
+      selectedModel.value = ascnModels.value[0].id
+    }
+  } catch { /**/ }
+  // История чата
   try {
     const res = await chatApi.getHistory(props.agentId)
     messages.value = res.data
@@ -332,7 +387,11 @@ async function sendMessage() {
     if (systemMsg) emit('settings-saved')
     await scrollToBottom()
   } catch (e) {
-    toast.error(e.response?.data?.detail || 'Ошибка отправки сообщения')
+    if (e.response?.data?.detail === 'insufficient_balance') {
+      showBalancePopup.value = true
+    } else {
+      toast.error(e.response?.data?.detail || 'Ошибка отправки сообщения')
+    }
   } finally {
     sending.value = false
   }

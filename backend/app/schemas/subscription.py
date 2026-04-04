@@ -9,6 +9,7 @@ class SubscriptionResponse(BaseModel):
     max_tools_per_agent: int
     energy_per_week: int
     energy_left: int
+    balance_usd: int = 0  # в центах
     renewed_at: datetime
 
     model_config = {"from_attributes": True}

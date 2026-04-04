@@ -33,6 +33,7 @@ const routes = [
       { path: 'agents', name: 'AdminAgents', component: () => import('@/pages/admin/AdminAgentsPage.vue') },
       { path: 'tools', name: 'AdminTools', component: () => import('@/pages/admin/AdminToolsPage.vue') },
       { path: 'onboarding', name: 'AdminOnboarding', component: () => import('@/pages/admin/AdminOnboardingPage.vue') },
+      { path: 'ascn', name: 'AdminAscn', component: () => import('@/pages/admin/AdminAscnPage.vue') },
     ],
   },
 

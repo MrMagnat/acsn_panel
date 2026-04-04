@@ -60,6 +60,7 @@
               <div class="flex gap-2">
                 <button class="text-xs text-primary-600 hover:underline" @click="openEdit(user)">Изменить</button>
                 <button class="text-xs text-yellow-600 hover:underline" @click="openEnergy(user)">⚡ Токены</button>
+                <button class="text-xs text-green-600 hover:underline" @click="openBalance(user)">💰 $</button>
               </div>
             </td>
           </tr>
@@ -85,6 +86,26 @@
             <button type="submit" class="btn-primary flex-1">Сохранить</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Модал долларового баланса -->
+    <div v-if="balanceUser" class="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4" @click.self="balanceUser = null">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+        <h2 class="font-semibold mb-1">💰 AI баланс: {{ balanceUser.name }}</h2>
+        <p class="text-xs text-gray-400 mb-4">Текущий баланс: <strong>${{ (balanceUser._balance_usd ?? 0) / 100 | 0 }}.${{ String((balanceUser._balance_usd ?? 0) % 100).padStart(2,'0') }}</strong></p>
+        <div class="space-y-3">
+          <div>
+            <label class="label">Начислить (центы, 100 = $1.00)</label>
+            <input v-model.number="balanceAmount" type="number" min="1" class="input" placeholder="500 = $5.00" />
+          </div>
+          <div class="flex gap-2">
+            <button class="btn-secondary flex-1" @click="balanceUser = null">Отмена</button>
+            <button class="btn-primary flex-1" :disabled="!balanceAmount || balanceAdding" @click="applyBalance">
+              {{ balanceAdding ? '...' : 'Начислить' }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -206,6 +227,11 @@ const adjustAmount = ref(null)
 const adjustDesc = ref('')
 const adjusting = ref(false)
 
+// Долларовый баланс
+const balanceUser = ref(null)
+const balanceAmount = ref(null)
+const balanceAdding = ref(false)
+
 const energyPercent = computed(() => {
   if (!energyData.value) return 0
   return Math.min(100, Math.round((energyData.value.energy_left / energyData.value.energy_per_week) * 100))
@@ -271,6 +297,27 @@ async function applyAdjust() {
     toast.error(e.response?.data?.detail || 'Ошибка')
   } finally {
     adjusting.value = false
+  }
+}
+
+function openBalance(user) {
+  balanceUser.value = user
+  balanceAmount.value = null
+}
+
+async function applyBalance() {
+  if (!balanceAmount.value) return
+  balanceAdding.value = true
+  try {
+    const res = await adminApi.adjustUserBalance(balanceUser.value.id, { amount: balanceAmount.value, description: 'Пополнение администратором' })
+    balanceUser.value._balance_usd = res.data.balance_usd
+    balanceAmount.value = null
+    toast.success(`Начислено ${balanceAmount.value} центов`)
+    balanceUser.value = null
+  } catch (e) {
+    toast.error(e.response?.data?.detail || 'Ошибка')
+  } finally {
+    balanceAdding.value = false
   }
 }
 

@@ -13,6 +13,7 @@ class Subscription(Base):
     max_tools_per_agent: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
     energy_per_week: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     energy_left: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
+    balance_usd: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # в центах
     renewed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="subscription")

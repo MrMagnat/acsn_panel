@@ -192,6 +192,53 @@ async def adjust_user_energy(
     )
 
 
+# ─── ASCN конфиг (ключ + модели для перепродажи) ─────────────────────────────
+
+DEFAULT_ASCN_MODELS = [
+    {"id": "openai/gpt-4o-mini",         "name": "GPT-4o mini",      "price_usd": 2},
+    {"id": "google/gemini-2.0-flash-001", "name": "Gemini 2.0 Flash", "price_usd": 3},
+    {"id": "deepseek/deepseek-r1",        "name": "DeepSeek R1",      "price_usd": 1},
+]
+
+
+@router.get("/ascn-config")
+async def get_ascn_config(db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)):
+    result = await db.execute(select(Setting).where(Setting.key == "ascn_config"))
+    setting = result.scalar_one_or_none()
+    if setting and setting.value:
+        return json.loads(setting.value)
+    return {"openrouter_key": "", "models": DEFAULT_ASCN_MODELS}
+
+
+@router.put("/ascn-config")
+async def save_ascn_config(config: dict[str, Any], db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)):
+    result = await db.execute(select(Setting).where(Setting.key == "ascn_config"))
+    setting = result.scalar_one_or_none()
+    if setting:
+        setting.value = json.dumps(config, ensure_ascii=False)
+    else:
+        db.add(Setting(key="ascn_config", value=json.dumps(config, ensure_ascii=False)))
+    await db.flush()
+    return config
+
+
+@router.post("/users/{user_id}/balance-usd")
+async def adjust_user_balance_usd(
+    user_id: str,
+    data: EnergyAdjust,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Пополнить или списать долларовый баланс (в центах)."""
+    sub = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
+    subscription = sub.scalar_one_or_none()
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Подписка не найдена")
+    subscription.balance_usd = max(0, subscription.balance_usd + data.amount)
+    await db.flush()
+    return {"balance_usd": subscription.balance_usd}
+
+
 # ─── Онбординг ───────────────────────────────────────────────────────────────
 
 @router.get("/onboarding")

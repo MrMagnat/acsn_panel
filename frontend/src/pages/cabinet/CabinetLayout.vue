@@ -42,6 +42,13 @@
           ></div>
         </div>
         <div class="text-xs text-gray-400 mt-1">Обновляется раз в неделю</div>
+        <!-- Долларовый баланс (AI-токены) -->
+        <div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
+          <span class="text-xs text-gray-500">🤖 AI баланс</span>
+          <span class="text-xs font-medium" :class="subStore.balanceUsd > 0 ? 'text-green-600' : 'text-red-400'">
+            {{ subStore.balanceFormatted }}
+          </span>
+        </div>
       </div>
 
       <div class="px-4 py-4 border-t border-gray-100">

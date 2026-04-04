@@ -103,6 +103,7 @@
                     <option value="select">select — выбор из списка</option>
                     <option value="array">array — массив</option>
                     <option value="base">base — база знаний</option>
+                    <option value="ai_token">ai_token — ИИ оператор</option>
                   </select>
                 </div>
                 <div class="flex flex-col">
@@ -138,6 +139,12 @@
               <!-- Подсказка для base -->
               <div v-if="field.field_type === 'base'" class="text-xs text-green-700 bg-green-50 rounded px-2 py-1">
                 Пользователь выберет свою базу знаний и колонки при запуске → в webhook отправится как <code>[[val1, val2], [val1, val2]]</code>
+              </div>
+              <!-- Подсказка для ai_token -->
+              <div v-if="field.field_type === 'ai_token'" class="text-xs text-orange-700 bg-orange-50 rounded px-2 py-1 space-y-1">
+                <div>Пользователь выбирает оператора ИИ и модель. В webhook отправится объект:</div>
+                <code class="block">{"operator": "ascn", "model": "openai/gpt-4o-mini", "token": "__ascn__"}</code>
+                <div class="text-orange-500">Токен <strong>__ascn__</strong> будет заменён реальным ключом сервером. Пользователь ключ не видит.</div>
               </div>
               <!-- is_runtime toggle -->
               <div class="flex items-center gap-2 pt-1 border-t border-gray-200">

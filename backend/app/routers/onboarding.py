@@ -98,6 +98,22 @@ DEFAULT_CONFIG = {
 }
 
 
+@router.get("/ascn-models")
+async def get_ascn_models(db: AsyncSession = Depends(get_db)):
+    """Публичный список ASCN-моделей с ценами (без ключа)."""
+    from ..models.setting import Setting
+    result = await db.execute(select(Setting).where(Setting.key == "ascn_config"))
+    setting = result.scalar_one_or_none()
+    if setting and setting.value:
+        config = json.loads(setting.value)
+        return config.get("models", [])
+    return [
+        {"id": "openai/gpt-4o-mini",         "name": "GPT-4o mini",      "price_usd": 2},
+        {"id": "google/gemini-2.0-flash-001", "name": "Gemini 2.0 Flash", "price_usd": 3},
+        {"id": "deepseek/deepseek-r1",        "name": "DeepSeek R1",      "price_usd": 1},
+    ]
+
+
 @router.get("")
 async def get_onboarding(db: AsyncSession = Depends(get_db)):
     """Получить конфиг онбординга (публичный эндпоинт)."""

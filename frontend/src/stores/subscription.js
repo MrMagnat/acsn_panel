@@ -12,6 +12,9 @@ export const useSubscriptionStore = defineStore('subscription', () => {
       ? Math.min(100, Math.round((energyLeft.value / energyPerWeek.value) * 100))
       : 0
   )
+  // Долларовый баланс в центах → строка "$X.XX"
+  const balanceUsd = computed(() => data.value?.balance_usd ?? 0)
+  const balanceFormatted = computed(() => `$${(balanceUsd.value / 100).toFixed(2)}`)
 
   async function fetch() {
     try {
@@ -25,5 +28,5 @@ export const useSubscriptionStore = defineStore('subscription', () => {
     if (data.value) data.value.energy_left = value
   }
 
-  return { data, energyLeft, energyPerWeek, energyPercent, fetch, setEnergyLeft }
+  return { data, energyLeft, energyPerWeek, energyPercent, balanceUsd, balanceFormatted, fetch, setEnergyLeft }
 })

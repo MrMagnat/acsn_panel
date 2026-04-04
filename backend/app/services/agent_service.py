@@ -3,6 +3,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
+import json as _json_module
 from ..models.agent import UserAgent
 from ..models.agent_tool import AgentTool
 from ..models.tool import Tool, ToolField
@@ -11,7 +12,33 @@ from ..models.template_agent import TemplateAgent, TemplateAgentTool
 from ..models.energy_transaction import EnergyTransaction
 from ..models.tool_run_log import ToolRunLog
 from ..models.trigger import AutoTrigger
+from ..models.setting import Setting
 from ..schemas.agent import AgentCreate, AgentUpdate, UpdateToolFields
+
+
+async def _resolve_ascn_tokens(field_values: dict, tool_fields: list, db: AsyncSession) -> dict:
+    """Подставляет реальный OpenRouter-ключ вместо __ascn__ в полях типа ai_token."""
+    ai_token_fields = {f.field_name for f in tool_fields if f.field_type == "ai_token"}
+    if not ai_token_fields:
+        return field_values
+
+    resolved = dict(field_values)
+    ascn_key = None
+
+    for field_name in ai_token_fields:
+        val = resolved.get(field_name)
+        if not isinstance(val, dict):
+            continue
+        if val.get("token") != "__ascn__":
+            continue
+        # Загружаем ключ один раз
+        if ascn_key is None:
+            setting = await db.execute(select(Setting).where(Setting.key == "ascn_config"))
+            cfg = setting.scalar_one_or_none()
+            ascn_key = (_json_module.loads(cfg.value).get("openrouter_key", "") if cfg and cfg.value else "")
+        resolved[field_name] = {**val, "token": ascn_key}
+
+    return resolved
 
 
 async def get_user_agents(user_id: str, db: AsyncSession) -> list[UserAgent]:
@@ -413,8 +440,11 @@ async def run_tool_standalone(user_id: str, tool_id: str, field_values: dict, db
     await db.flush()
     run_log.instance_id = str(run_log.id)
 
+    # Подставляем реальный ASCN-ключ для полей типа ai_token
+    resolved_fields = await _resolve_ascn_tokens(field_values, tool.fields, db)
+
     payload = {
-        "fields": field_values,
+        "fields": resolved_fields,
         "args": {},
         "user_id": user_id,
         "log_id": str(run_log.id),
