@@ -14,10 +14,8 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('tool_run_logs') as batch_op:
-        batch_op.alter_column('agent_id', nullable=True)
+    op.alter_column('tool_run_logs', 'agent_id', nullable=True)
 
 
 def downgrade():
-    with op.batch_alter_table('tool_run_logs') as batch_op:
-        batch_op.alter_column('agent_id', nullable=False)
+    op.alter_column('tool_run_logs', 'agent_id', nullable=False)

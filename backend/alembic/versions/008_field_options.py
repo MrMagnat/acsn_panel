@@ -14,10 +14,8 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('tool_fields') as batch_op:
-        batch_op.add_column(sa.Column('options', sa.Text(), nullable=True))
+    op.add_column('tool_fields', sa.Column('options', sa.Text(), nullable=True))
 
 
 def downgrade():
-    with op.batch_alter_table('tool_fields') as batch_op:
-        batch_op.drop_column('options')
+    op.drop_column('tool_fields', 'options')

@@ -14,14 +14,12 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('users') as batch_op:
-        batch_op.add_column(sa.Column('telegram', sa.String(255), nullable=True))
-        batch_op.add_column(sa.Column('phone', sa.String(100), nullable=True))
-        batch_op.add_column(sa.Column('avatar_url', sa.String(500), nullable=True))
+    op.add_column('users', sa.Column('telegram', sa.String(255), nullable=True))
+    op.add_column('users', sa.Column('phone', sa.String(100), nullable=True))
+    op.add_column('users', sa.Column('avatar_url', sa.String(500), nullable=True))
 
 
 def downgrade():
-    with op.batch_alter_table('users') as batch_op:
-        batch_op.drop_column('avatar_url')
-        batch_op.drop_column('phone')
-        batch_op.drop_column('telegram')
+    op.drop_column('users', 'avatar_url')
+    op.drop_column('users', 'phone')
+    op.drop_column('users', 'telegram')

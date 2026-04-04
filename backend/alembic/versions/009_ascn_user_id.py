@@ -14,12 +14,10 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('users') as batch_op:
-        batch_op.add_column(sa.Column('ascn_user_id', sa.Integer(), nullable=True))
-        batch_op.create_index('ix_users_ascn_user_id', ['ascn_user_id'], unique=True)
+    op.add_column('users', sa.Column('ascn_user_id', sa.Integer(), nullable=True))
+    op.create_index('ix_users_ascn_user_id', 'users', ['ascn_user_id'], unique=True)
 
 
 def downgrade():
-    with op.batch_alter_table('users') as batch_op:
-        batch_op.drop_index('ix_users_ascn_user_id')
-        batch_op.drop_column('ascn_user_id')
+    op.drop_index('ix_users_ascn_user_id', table_name='users')
+    op.drop_column('users', 'ascn_user_id')
