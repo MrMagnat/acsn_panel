@@ -99,11 +99,24 @@ export function useOnboarding() {
   }
 
   async function navigateTo(step) {
-    if (!step.route) return
-    if (router.currentRoute.value.path === step.route) return
-    await router.push(step.route)
-    await nextTick()
-    await sleep(350)
+    if (step.route && router.currentRoute.value.path !== step.route) {
+      await router.push(step.route)
+      await nextTick()
+    }
+    // Ждём появления элемента в DOM (страница может грузить данные асинхронно)
+    if (step.element) {
+      await waitForElement(step.element, 4000)
+    } else {
+      await sleep(200)
+    }
+  }
+
+  async function waitForElement(selector, timeout = 4000) {
+    const start = Date.now()
+    while (Date.now() - start < timeout) {
+      if (document.querySelector(selector)) return
+      await sleep(100)
+    }
   }
 
   function buildDesc(step) {
