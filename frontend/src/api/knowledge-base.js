@@ -20,5 +20,5 @@ export const kbApi = {
     form.append('file', file)
     return http.post(`/kb/${id}/import`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
-  exportCsvUrl: (id) => `${http.defaults.baseURL}/kb/${id}/export`,
+  exportCsv: (id) => http.get(`/kb/${id}/export`, { responseType: 'blob' }),
 }

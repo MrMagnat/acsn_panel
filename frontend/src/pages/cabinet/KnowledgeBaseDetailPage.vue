@@ -17,7 +17,7 @@
           📥 Импорт CSV
           <input type="file" accept=".csv" class="hidden" @change="importCsv" />
         </label>
-        <a :href="exportUrl" class="btn-secondary text-xs">📤 Экспорт CSV</a>
+        <button class="btn-secondary text-xs" @click="exportCsv">📤 Экспорт CSV</button>
         <button class="btn-primary text-xs" @click="addRow">+ Строка</button>
       </div>
     </div>
@@ -135,7 +135,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { kbApi } from '@/api/knowledge-base'
 import { useToastStore } from '@/stores/toast'
@@ -163,8 +163,6 @@ const fieldNewName = ref('')
 const showAddField = ref(false)
 const newFieldName = ref('')
 const newFieldType = ref('text')
-
-const exportUrl = computed(() => kbApi.exportCsvUrl(route.params.id))
 
 onMounted(load)
 
@@ -279,6 +277,22 @@ async function saveRenameKb() {
     kb.value.name = newName
   }
   renamingKb.value = false
+}
+
+// ─── Экспорт CSV ─────────────────────────────────────────────────────────────
+
+async function exportCsv() {
+  try {
+    const res = await kbApi.exportCsv(kb.value.id)
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = (kb.value.name || 'export') + '.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    toast.error('Ошибка экспорта')
+  }
 }
 
 // ─── Импорт CSV ───────────────────────────────────────────────────────────────
