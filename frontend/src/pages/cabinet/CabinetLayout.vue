@@ -30,6 +30,9 @@
 
       <!-- Энергия аккаунта -->
       <div v-if="subStore.data" id="user-energy" class="px-4 py-3 border-t border-gray-100">
+        <div v-if="subStore.data.plan_name" class="text-xs text-purple-600 font-medium mb-2">
+          💎 {{ subStore.data.plan_name }}
+        </div>
         <div class="flex justify-between items-center mb-1">
           <span class="text-xs text-gray-500">⚡ Токены</span>
           <span class="text-xs font-medium text-gray-700">{{ subStore.energyLeft }} / {{ subStore.energyPerWeek }}</span>

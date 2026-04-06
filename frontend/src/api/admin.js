@@ -17,6 +17,10 @@ export const adminApi = {
   adjustUserEnergy: (userId, data) => http.post(`/admin/users/${userId}/energy`, data),
   adjustUserBalance: (userId, data) => http.post(`/admin/users/${userId}/balance-usd`, data),
 
+  // Тарифы
+  getTariffMappings: () => http.get('/admin/tariff-mappings'),
+  saveTariffMappings: (data) => http.put('/admin/tariff-mappings', data),
+
   // Инструменты
   getTools: () => http.get('/admin/tools'),
   getTool: (id) => http.get(`/admin/tools/${id}`),

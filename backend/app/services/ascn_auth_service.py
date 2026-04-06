@@ -4,6 +4,7 @@
   - login_via_ascn(email, password) — дев-режим, логинимся через API
   - sync_from_token(token)          — прод-режим, токен из куки
 """
+import json
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -11,10 +12,78 @@ from fastapi import HTTPException, status
 
 from ..models.user import User
 from ..models.subscription import Subscription
+from ..models.setting import Setting
 from ..core.security import create_access_token, create_refresh_token
 from ..schemas.auth import TokenResponse
 
 ASCN_API = "https://dev-api.ascn.ai"
+
+DEFAULT_TARIFF_MAPPINGS = [
+    {"slug": "default", "name": "Базовый", "max_agents": 1, "max_tools_per_agent": 2},
+]
+
+
+async def _get_tariff_mappings(db: AsyncSession) -> list[dict]:
+    result = await db.execute(select(Setting).where(Setting.key == "tariff_mappings"))
+    row = result.scalar_one_or_none()
+    if not row:
+        return DEFAULT_TARIFF_MAPPINGS
+    try:
+        return json.loads(row.value)
+    except Exception:
+        return DEFAULT_TARIFF_MAPPINGS
+
+
+async def _sync_subscription(user: User, ascn_token: str, db: AsyncSession) -> None:
+    """Запрашивает подписку ASCN и обновляет локальную."""
+    headers = {"Authorization": f"Bearer {ascn_token}"}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{ASCN_API}/billing/me/subscription/current/",
+                params={"tariff_type": "no-code", "lang": "ru", "limit": 10},
+                headers=headers,
+            )
+        if not resp.is_success:
+            return
+
+        data = resp.json()
+        rows = data.get("rows", [])
+        # Берём первую неистёкшую подписку
+        active = next((r for r in rows if not r.get("expired", True)), None)
+        if not active:
+            active = rows[0] if rows else None
+        if not active:
+            return
+
+        tariff = active.get("tariff", {})
+        slug = tariff.get("slug", "default")
+        plan_name = tariff.get("name", slug)
+        credits = tariff.get("nocode_credits_count", 0) or 0
+
+        # Ищем лимиты в настройках тарифов
+        mappings = await _get_tariff_mappings(db)
+        mapping = next((m for m in mappings if m["slug"] == slug), None)
+        if not mapping:
+            mapping = next((m for m in mappings if m["slug"] == "default"), DEFAULT_TARIFF_MAPPINGS[0])
+
+        # Обновляем подписку
+        sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user.id))
+        sub = sub_result.scalar_one_or_none()
+        if not sub:
+            sub = Subscription(user_id=user.id)
+            db.add(sub)
+            await db.flush()
+
+        sub.plan = slug
+        sub.plan_name = plan_name
+        sub.energy_left = credits
+        sub.energy_per_week = credits
+        sub.max_agents = mapping.get("max_agents", sub.max_agents)
+        sub.max_tools_per_agent = mapping.get("max_tools_per_agent", sub.max_tools_per_agent)
+
+    except Exception:
+        pass  # Не ломаем логин если ASCN недоступен
 
 
 async def login_via_ascn(email: str, password: str, db: AsyncSession) -> TokenResponse:
@@ -70,7 +139,6 @@ async def sync_from_token(ascn_token: str, db: AsyncSession) -> TokenResponse:
     user = result.scalar_one_or_none()
 
     if not user:
-        # Может быть уже зарегистрирован локально по email
         result = await db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
 
@@ -79,14 +147,12 @@ async def sync_from_token(ascn_token: str, db: AsyncSession) -> TokenResponse:
     avatar_url = profile.get("avatar")
 
     if user:
-        # Обновляем данные
         user.ascn_user_id = ascn_id
         user.name = name
         user.telegram = telegram
         user.phone = phone
         user.avatar_url = avatar_url
     else:
-        # Создаём нового юзера (пароль заблокирован — только ASCN-логин)
         import uuid
         user = User(
             email=email,
@@ -99,10 +165,12 @@ async def sync_from_token(ascn_token: str, db: AsyncSession) -> TokenResponse:
         )
         db.add(user)
         await db.flush()
-
-        # Дефолтная подписка
         db.add(Subscription(user_id=user.id))
 
+    await db.flush()
+
+    # 4. Синхронизируем подписку ASCN
+    await _sync_subscription(user, ascn_token, db)
     await db.flush()
 
     return TokenResponse(

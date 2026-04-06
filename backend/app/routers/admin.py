@@ -222,6 +222,35 @@ async def save_ascn_config(config: dict[str, Any], db: AsyncSession = Depends(ge
     return config
 
 
+DEFAULT_TARIFF_MAPPINGS = [
+    {"slug": "default",       "name": "Базовый (нет подписки)", "max_agents": 1, "max_tools_per_agent": 2},
+    {"slug": "no-code-start", "name": "No-Code Start",           "max_agents": 3, "max_tools_per_agent": 3},
+    {"slug": "no-code-base",  "name": "No-Code Base",            "max_agents": 5, "max_tools_per_agent": 5},
+    {"slug": "no-code-pro",   "name": "No-Code Pro",             "max_agents": 15, "max_tools_per_agent": 10},
+]
+
+
+@router.get("/tariff-mappings")
+async def get_tariff_mappings(db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)):
+    result = await db.execute(select(Setting).where(Setting.key == "tariff_mappings"))
+    setting = result.scalar_one_or_none()
+    if setting and setting.value:
+        return json.loads(setting.value)
+    return DEFAULT_TARIFF_MAPPINGS
+
+
+@router.put("/tariff-mappings")
+async def save_tariff_mappings(mappings: list[dict], db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)):
+    result = await db.execute(select(Setting).where(Setting.key == "tariff_mappings"))
+    setting = result.scalar_one_or_none()
+    if setting:
+        setting.value = json.dumps(mappings, ensure_ascii=False)
+    else:
+        db.add(Setting(key="tariff_mappings", value=json.dumps(mappings, ensure_ascii=False)))
+    await db.flush()
+    return mappings
+
+
 @router.post("/users/{user_id}/balance-usd")
 async def adjust_user_balance_usd(
     user_id: str,

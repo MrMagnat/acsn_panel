@@ -34,6 +34,7 @@ const routes = [
       { path: 'tools', name: 'AdminTools', component: () => import('@/pages/admin/AdminToolsPage.vue') },
       { path: 'onboarding', name: 'AdminOnboarding', component: () => import('@/pages/admin/AdminOnboardingPage.vue') },
       { path: 'ascn', name: 'AdminAscn', component: () => import('@/pages/admin/AdminAscnPage.vue') },
+      { path: 'tariffs', name: 'AdminTariffs', component: () => import('@/pages/admin/AdminTariffPage.vue') },
     ],
   },
 

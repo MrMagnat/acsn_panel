@@ -9,6 +9,7 @@ class Subscription(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=gen_uuid)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     plan: Mapped[str] = mapped_column(String(100), default="free", nullable=False)
+    plan_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     max_agents: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     max_tools_per_agent: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
     energy_per_week: Mapped[int] = mapped_column(Integer, default=100, nullable=False)

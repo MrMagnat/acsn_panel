@@ -5,6 +5,7 @@ from datetime import datetime
 class SubscriptionResponse(BaseModel):
     id: str
     plan: str
+    plan_name: str | None = None
     max_agents: int
     max_tools_per_agent: int
     energy_per_week: int
