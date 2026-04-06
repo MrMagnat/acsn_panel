@@ -109,6 +109,16 @@
         <p class="text-xs text-gray-400 mt-1">Эти значения можно передать следующим блокам</p>
       </div>
     </div>
+
+    <!-- Delete button -->
+    <div class="px-4 py-2.5 border-t border-gray-100 shrink-0">
+      <button
+        class="w-full text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg py-1.5 transition-colors"
+        @click="$emit('delete')"
+      >
+        Удалить блок
+      </button>
+    </div>
   </div>
 </template>
 
@@ -123,7 +133,7 @@ const props = defineProps({
   agentTool: { type: Object, default: null },
   inputData: { type: Object, default: () => ({}) },
 })
-const emits = defineEmits(['update', 'close'])
+const emits = defineEmits(['update', 'close', 'delete'])
 
 const { getEdges, findNode } = useVueFlow()
 

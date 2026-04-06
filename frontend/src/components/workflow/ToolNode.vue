@@ -8,6 +8,17 @@
       <span class="tool-node__name">{{ data.toolName || 'Инструмент' }}</span>
     </div>
 
+    <!-- Entry handle: for trigger connections (no field, just execution order) -->
+    <div class="tool-node__entry">
+      <Handle
+        type="target"
+        id="__entry__"
+        :position="Position.Left"
+        class="tool-node__handle--entry"
+      />
+      <span class="tool-node__entry-label">▶ вход</span>
+    </div>
+
     <!-- Input handles (left) -->
     <div class="tool-node__inputs">
       <div
@@ -63,6 +74,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
+
 
 const props = defineProps({
   id: String,
@@ -127,6 +139,28 @@ const missingRequired = computed(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.tool-node__entry {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-bottom: 1px dashed #e5e7eb;
+  position: relative;
+}
+.tool-node__handle--entry {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 3px !important;
+  background: #d1fae5 !important;
+  border: 2px solid #10b981 !important;
+  left: -6px !important;
+}
+.tool-node__entry-label {
+  font-size: 10px;
+  color: #10b981;
+  font-weight: 500;
+  padding-left: 8px;
 }
 .tool-node__inputs,
 .tool-node__outputs {

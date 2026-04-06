@@ -142,6 +142,7 @@
             :input-data="selectedNode?.data?.input_data ?? {}"
             @update="onNodeDataUpdate"
             @close="selectedNodeId = null"
+            @delete="deleteSelectedNode"
           />
         </aside>
       </Transition>
@@ -351,6 +352,13 @@ function onConnect(params) {
 
 function onNodeClick({ node }) {
   selectedNodeId.value = node.id
+}
+
+function deleteSelectedNode() {
+  if (!selectedNodeId.value) return
+  nodes.value = nodes.value.filter((n) => n.id !== selectedNodeId.value)
+  edges.value = edges.value.filter((e) => e.source !== selectedNodeId.value && e.target !== selectedNodeId.value)
+  selectedNodeId.value = null
 }
 
 function onNodeDataUpdate(newData) {

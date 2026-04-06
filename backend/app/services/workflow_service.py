@@ -146,9 +146,11 @@ async def run_workflow(
 
             for edge in edges_list:
                 if edge.get("target") == node_id:
+                    tgt_handle = edge.get("targetHandle", "")
+                    if tgt_handle == "__entry__":
+                        continue  # trigger edge — only defines order, no data
                     src_id = edge.get("source")
                     src_handle = edge.get("sourceHandle", "")
-                    tgt_handle = edge.get("targetHandle", "")
                     if src_id in node_outputs and src_handle in node_outputs[src_id]:
                         fields[tgt_handle] = node_outputs[src_id][src_handle]
 
@@ -186,6 +188,7 @@ async def run_workflow(
         run.result_json = node_outputs
         run.finished_at = datetime.now(timezone.utc)
         await db.commit()
+        await db.refresh(run)
 
     except Exception as e:
         run.status = "error"
@@ -193,6 +196,7 @@ async def run_workflow(
         run.result_json = node_outputs  # сохраняем что успело выполниться
         run.finished_at = datetime.now(timezone.utc)
         await db.commit()
+        await db.refresh(run)
         logger.error(f"Воркфлоу {workflow_id} ошибка: {e}")
 
     return run
