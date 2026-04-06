@@ -239,6 +239,19 @@ async def get_tariff_mappings(db: AsyncSession = Depends(get_db), _: User = Depe
     return DEFAULT_TARIFF_MAPPINGS
 
 
+@router.get("/ascn-slugs")
+async def get_ascn_slugs(db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)):
+    """Возвращает уникальные slugs тарифов из подписок пользователей."""
+    result = await db.execute(
+        select(Subscription.plan, func.count(Subscription.user_id).label("cnt"))
+        .where(Subscription.plan.isnot(None))
+        .group_by(Subscription.plan)
+        .order_by(func.count(Subscription.user_id).desc())
+    )
+    rows = result.all()
+    return [{"slug": r.plan, "count": r.cnt} for r in rows]
+
+
 @router.put("/tariff-mappings")
 async def save_tariff_mappings(mappings: list[dict], db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)):
     result = await db.execute(select(Setting).where(Setting.key == "tariff_mappings"))

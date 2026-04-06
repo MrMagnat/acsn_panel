@@ -18,6 +18,7 @@ export const adminApi = {
   adjustUserBalance: (userId, data) => http.post(`/admin/users/${userId}/balance-usd`, data),
 
   // Тарифы
+  getAscnSlugs: () => http.get('/admin/ascn-slugs'),
   getTariffMappings: () => http.get('/admin/tariff-mappings'),
   saveTariffMappings: (data) => http.put('/admin/tariff-mappings', data),
 

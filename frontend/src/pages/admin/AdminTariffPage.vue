@@ -49,6 +49,22 @@
       </button>
     </div>
 
+    <!-- Слаги из БД -->
+    <div v-if="ascnSlugs.length" class="mt-4 p-4 bg-gray-50 rounded-xl">
+      <div class="text-xs font-medium text-gray-500 mb-2">Слаги ASCN у ваших пользователей:</div>
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="s in ascnSlugs"
+          :key="s.slug"
+          class="px-2 py-1 bg-white border border-gray-200 rounded-lg text-xs font-mono text-gray-700 hover:border-purple-400 hover:text-purple-700 transition-colors"
+          :title="`${s.count} пользователей — нажми чтобы добавить`"
+          @click="addRowWithSlug(s.slug)"
+        >
+          {{ s.slug }} <span class="text-gray-400">({{ s.count }})</span>
+        </button>
+      </div>
+    </div>
+
     <div class="mt-6 p-4 bg-blue-50 rounded-xl text-xs text-blue-600 space-y-1">
       <div class="font-medium">Как работает синхронизация:</div>
       <div>• При каждом входе пользователя — запрашиваем его подписку из ASCN API</div>
@@ -66,13 +82,18 @@ import { useToastStore } from '@/stores/toast'
 
 const toast = useToastStore()
 const mappings = ref([])
+const ascnSlugs = ref([])
 const loading = ref(true)
 const saving = ref(false)
 
 onMounted(async () => {
   try {
-    const res = await adminApi.getTariffMappings()
-    mappings.value = res.data.map(m => ({ ...m }))
+    const [mappingsRes, slugsRes] = await Promise.all([
+      adminApi.getTariffMappings(),
+      adminApi.getAscnSlugs(),
+    ])
+    mappings.value = mappingsRes.data.map(m => ({ ...m }))
+    ascnSlugs.value = slugsRes.data
   } catch {
     toast.error('Ошибка загрузки тарифов')
   } finally {
@@ -82,6 +103,11 @@ onMounted(async () => {
 
 function addRow() {
   mappings.value.push({ slug: '', name: '', max_agents: 3, max_tools_per_agent: 3 })
+}
+
+function addRowWithSlug(slug) {
+  if (mappings.value.some(m => m.slug === slug)) return
+  mappings.value.push({ slug, name: slug, max_agents: 3, max_tools_per_agent: 3 })
 }
 
 function removeRow(idx) {
