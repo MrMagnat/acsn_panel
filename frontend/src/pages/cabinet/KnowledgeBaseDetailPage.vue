@@ -26,14 +26,14 @@
     <div v-if="loading" class="flex-1 flex items-center justify-center text-gray-400">Загрузка...</div>
 
     <div v-else class="flex-1 overflow-auto">
-      <table class="w-full text-sm border-collapse" style="min-width: max-content">
-        <thead class="bg-gray-50 sticky top-0 z-10">
+      <table class="w-full caption-bottom text-sm" style="min-width: max-content">
+        <thead class="sticky top-0 z-10 bg-white [&_tr]:border-b [&_tr]:border-gray-200">
           <tr>
-            <th class="w-10 border-b border-r border-gray-200 px-3 py-2 text-gray-400 font-normal text-xs">#</th>
+            <th class="h-11 w-10 px-3 text-center align-middle text-xs font-normal text-gray-400 border-r border-gray-200">#</th>
             <th
               v-for="field in kb.fields"
               :key="field.id"
-              class="border-b border-r border-gray-200 px-3 py-2 text-left font-medium text-gray-600 min-w-[140px] group"
+              class="h-11 px-3 text-left align-middle text-xs font-medium text-gray-500 min-w-[140px] border-r border-gray-200 group"
             >
               <div class="flex items-center gap-1">
                 <span v-if="!renamingField || renamingField !== field.id" class="flex-1 truncate">{{ field.name }}</span>
@@ -56,19 +56,18 @@
                 >✕</button>
               </div>
             </th>
-            <!-- Добавить колонку -->
-            <th class="border-b border-gray-200 px-3 py-2 w-10">
+            <th class="h-11 px-3 w-10 align-middle">
               <button class="text-gray-400 hover:text-primary-600 font-bold text-lg leading-none" @click="showAddField = true">+</button>
             </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody class="[&_tr:last-child]:border-0">
           <tr
             v-for="(record, rowIdx) in kb.records"
             :key="record.id"
-            class="hover:bg-gray-50/50 group/row"
+            class="border-b border-gray-100 transition-colors hover:bg-gray-50/60 group/row"
           >
-            <td class="border-b border-r border-gray-100 px-3 py-1.5 text-xs text-gray-400 text-center">
+            <td class="px-3 py-2 align-middle text-xs text-gray-400 text-center border-r border-gray-100">
               <div class="flex items-center justify-center gap-1">
                 <span>{{ rowIdx + 1 }}</span>
                 <button
@@ -80,26 +79,25 @@
             <td
               v-for="field in kb.fields"
               :key="field.id"
-              class="border-b border-r border-gray-100 px-0 py-0 min-w-[140px] max-w-[300px]"
+              class="p-0 align-middle border-r border-gray-100 min-w-[140px] max-w-[300px]"
               @click="startEdit(record, field.name)"
             >
               <input
                 v-if="editing?.recordId === record.id && editing?.fieldName === field.name"
                 v-model="editValue"
-                class="w-full px-3 py-1.5 outline-none bg-primary-50 border border-primary-300 text-sm"
+                class="w-full px-3 py-2 outline-none bg-primary-50 ring-1 ring-inset ring-primary-300 text-sm"
                 autofocus
                 @blur="saveEdit"
                 @keydown.enter="saveEdit"
                 @keydown.escape="editing = null"
               />
-              <div v-else class="px-3 py-1.5 text-gray-700 truncate cursor-text min-h-[32px]">
+              <div v-else class="px-3 py-2 text-gray-700 truncate cursor-text min-h-[36px]">
                 {{ record.data[field.name] ?? '' }}
               </div>
             </td>
-            <td class="border-b border-gray-100"></td>
+            <td class="border-r-0"></td>
           </tr>
 
-          <!-- Пустая строка-добавления -->
           <tr>
             <td class="px-3 py-2" colspan="999">
               <button class="text-xs text-gray-400 hover:text-primary-600" @click="addRow">+ Добавить строку</button>
