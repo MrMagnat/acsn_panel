@@ -141,6 +141,7 @@ async def create_agent_from_template(user_id: str, template_id: str, db: AsyncSe
         skills=template.skills,
         energy_per_chat=template.energy_per_chat,
         energy_left=subscription.energy_per_week,
+        prompt_suggestions=template.prompt_suggestions,
     )
     db.add(agent)
     await db.flush()
