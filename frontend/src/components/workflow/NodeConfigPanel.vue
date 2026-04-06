@@ -29,7 +29,7 @@
 
         <!-- Manual input -->
         <template v-else>
-          <select v-if="field.field_type === 'select'" v-model="localData[field.field_name]" class="input text-sm" @change="emit">
+          <select v-if="field.field_type === 'select'" v-model="localData[field.field_name]" class="input text-sm" @change="emitUpdate">
             <option value="">— выберите —</option>
             <option v-for="opt in parseOptions(field.options)" :key="opt" :value="opt">{{ opt }}</option>
           </select>
@@ -39,14 +39,14 @@
             class="input resize-none text-sm font-mono"
             rows="3"
             :placeholder="field.hint || ''"
-            @input="emit"
+            @input="emitUpdate"
           />
           <input
             v-else-if="field.field_type !== 'ai_token'"
             v-model="localData[field.field_name]"
             class="input text-sm"
             :placeholder="field.hint || ''"
-            @input="emit"
+            @input="emitUpdate"
           />
           <p v-if="field.hint && field.field_type === 'text'" class="text-xs text-gray-400 mt-0.5">{{ field.hint }}</p>
         </template>
@@ -79,7 +79,7 @@ const props = defineProps({
   agentTool: { type: Object, default: null },
   inputData: { type: Object, default: () => ({}) },
 })
-const emit = defineEmits(['update', 'close'])
+const emits = defineEmits(['update', 'close'])
 
 const { getEdges, findNode } = useVueFlow()
 
@@ -113,11 +113,11 @@ function parseOptions(opts) {
   return String(opts).split('\n').map((s) => s.trim()).filter(Boolean)
 }
 
-function emit() {
-  emit('update', { ...localData.value })
+function emitUpdate() {
+  emits('update', { ...localData.value })
 }
 
 watch(localData, () => {
-  emit('update', { ...localData.value })
+  emits('update', { ...localData.value })
 }, { deep: true })
 </script>
