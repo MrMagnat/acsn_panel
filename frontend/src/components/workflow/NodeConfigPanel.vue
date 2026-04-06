@@ -116,8 +116,4 @@ function parseOptions(opts) {
 function emitUpdate() {
   emits('update', { ...localData.value })
 }
-
-watch(localData, () => {
-  emits('update', { ...localData.value })
-}, { deep: true })
 </script>
