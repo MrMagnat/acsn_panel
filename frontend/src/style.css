@@ -2,20 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bauhaus-card-bg: #ffffff;
-  --bauhaus-card-separator: #e5e7eb;
-  --bauhaus-card-inscription-top: #6b7280;
-  --bauhaus-card-inscription-main: #111827;
-  --bauhaus-card-inscription-sub: #6b7280;
-  --bauhaus-card-inscription-progress-label: #4b5563;
-  --bauhaus-card-inscription-progress-value: #1f2937;
-  --bauhaus-card-progress-bar-bg: #e5e7eb;
-  --bauhaus-chronicle-bg: #111827;
-  --bauhaus-chronicle-fg: #ffffff;
-  --bauhaus-chronicle-hover-fg: #ffffff;
-}
-
 @layer base {
   body {
     @apply bg-surface text-gray-900 font-sans;

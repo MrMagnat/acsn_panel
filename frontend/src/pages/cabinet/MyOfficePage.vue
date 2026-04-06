@@ -16,7 +16,6 @@
         v-for="agent in agentsStore.agents"
         :key="agent.id"
         :agent="agent"
-        :max-tools="subStore.data?.max_tools_per_agent ?? 5"
         @click="router.push(`/cabinet/agents/${agent.id}`)"
       />
 
