@@ -1,34 +1,35 @@
 <template>
-  <div
-    class="card p-5 flex flex-col gap-3 cursor-pointer hover:shadow-md transition-shadow min-h-[160px]"
-    @click="$emit('click')"
-  >
-    <!-- Шапка: название и статус -->
-    <div class="flex items-start justify-between gap-2">
-      <h3 class="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">{{ agent.name }}</h3>
-      <span :class="agent.is_active ? 'badge-active' : 'badge-inactive'" class="shrink-0">
-        {{ agent.is_active ? 'Активен' : 'Неактивен' }}
-      </span>
-    </div>
-
-    <!-- Инструменты -->
-    <div class="flex items-center gap-1.5 text-xs text-gray-500 mt-auto">
-      <span>🔧</span>
-      <span>{{ agent.tools_count }} {{ toolsLabel(agent.tools_count) }}</span>
-    </div>
-  </div>
+  <BauhausCard
+    :id="agent.id"
+    :accent-color="agent.is_active ? '#156ef6' : '#6b7280'"
+    :top-inscription="agent.is_active ? 'Активен' : 'Неактивен'"
+    :main-text="agent.name"
+    :sub-main-text="agent.description || ' '"
+    progress-label="Инструменты:"
+    :progress="toolsProgress"
+    :progress-value="toolsProgressLabel"
+    primary-label="Открыть"
+    secondary-label="Запустить"
+    @primary="$emit('click')"
+    @secondary="$emit('click')"
+    @more="$emit('click')"
+  />
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import BauhausCard from '@/components/ui/BauhausCard.vue'
 
 const props = defineProps({
   agent: { type: Object, required: true },
+  maxTools: { type: Number, default: 5 },
 })
 defineEmits(['click'])
 
-function toolsLabel(n) {
-  if (n === 1) return 'инструмент'
-  if (n >= 2 && n <= 4) return 'инструмента'
-  return 'инструментов'
-}
+const toolsProgress = computed(() =>
+  props.maxTools > 0 ? Math.round((props.agent.tools_count / props.maxTools) * 100) : 0
+)
+const toolsProgressLabel = computed(() =>
+  `${props.agent.tools_count} / ${props.maxTools}`
+)
 </script>
