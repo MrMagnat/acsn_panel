@@ -163,7 +163,7 @@ const agentId = route.params.agentId
 
 const nodeTypes = { tool: markRaw(ToolNode) }
 
-const { addNodes, addEdges, project, findNode } = useVueFlow()
+const { screenToFlowCoordinate } = useVueFlow()
 
 const nodes = ref([])
 const edges = ref([])
@@ -244,10 +244,9 @@ function onDragStart(event, agentTool) {
 
 function onDrop(event) {
   if (!draggedTool) return
-  const bounds = event.currentTarget.getBoundingClientRect()
-  const position = project({
-    x: event.clientX - bounds.left,
-    y: event.clientY - bounds.top,
+  const position = screenToFlowCoordinate({
+    x: event.clientX,
+    y: event.clientY,
   })
 
   const nodeId = `node-${Date.now()}`
