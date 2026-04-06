@@ -15,6 +15,7 @@ const routes = [
       { path: '', redirect: '/cabinet/office' },
       { path: 'office', name: 'Office', component: () => import('@/pages/cabinet/MyOfficePage.vue') },
       { path: 'agents/:id', name: 'AgentDetail', component: () => import('@/pages/cabinet/AgentDetailPage.vue') },
+      { path: 'agents/:agentId/workflow/:workflowId', name: 'WorkflowEditor', component: () => import('@/pages/cabinet/WorkflowPage.vue') },
 { path: 'tools', name: 'ToolStore', component: () => import('@/pages/cabinet/ToolStorePage.vue') },
       { path: 'history', name: 'RunHistory', component: () => import('@/pages/cabinet/RunHistoryPage.vue') },
       { path: 'knowledge-base', name: 'KnowledgeBase', component: () => import('@/pages/cabinet/KnowledgeBasePage.vue') },

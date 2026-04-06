@@ -72,6 +72,34 @@
             </p>
           </div>
 
+          <!-- Воркфлоу -->
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="font-semibold text-sm text-gray-700">⟨⟩ Воркфлоу</h2>
+              <button class="text-xs text-primary-600 hover:underline" @click="createWorkflow">+ Новый</button>
+            </div>
+            <div v-if="workflows.length === 0" class="text-xs text-gray-400 text-center py-3">
+              Нет воркфлоу. Создайте цепочку из инструментов.
+            </div>
+            <div v-else class="space-y-2">
+              <div
+                v-for="wf in workflows"
+                :key="wf.id"
+                class="flex items-center justify-between p-2.5 rounded-lg border border-gray-100 hover:border-primary-300 hover:bg-primary-50/40 cursor-pointer transition-colors group"
+                @click="router.push(`/cabinet/agents/${agent.id}/workflow/${wf.id}`)"
+              >
+                <span class="text-sm text-gray-800 font-medium">{{ wf.name }}</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-gray-400">{{ wf.graph_json?.nodes?.length ?? 0 }} шагов</span>
+                  <button
+                    class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all text-xs"
+                    @click.stop="deleteWorkflow(wf.id)"
+                  >✕</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Автозапуски -->
           <div class="card p-5">
             <h2 class="font-semibold text-sm text-gray-700 mb-4">🕐 Автозапуски</h2>
@@ -193,7 +221,9 @@ import { useAgentsStore } from '@/stores/agents'
 import { useToastStore } from '@/stores/toast'
 import { useSubscriptionStore } from '@/stores/subscription'
 import { agentsApi } from '@/api/agents'
+import { workflowApi } from '@/api/workflow'
 import ToolCard from '@/components/tools/ToolCard.vue'
+
 import TriggersBlock from '@/components/agents/TriggersBlock.vue'
 import ChatWindow from '@/components/chat/ChatWindow.vue'
 import EditAgentModal from '@/components/agents/EditAgentModal.vue'
@@ -214,6 +244,7 @@ const showToolStore = ref(false)
 const showUpgradeModal = ref(false)
 const runLogs = ref([])
 const selectedLog = ref(null)
+const workflows = ref([])
 
 const atToolLimit = computed(() => {
   if (!agent.value || !subStore.data) return false
@@ -224,10 +255,36 @@ onMounted(async () => {
   const agentRes = await agentsStore.fetchAgent(route.params.id).catch(() => null)
   if (agentRes) {
     agent.value = agentRes
-    await loadRunLogs()
+    await Promise.all([loadRunLogs(), loadWorkflows()])
   }
   loading.value = false
 })
+
+async function loadWorkflows() {
+  try {
+    const res = await workflowApi.list(route.params.id)
+    workflows.value = res.data
+  } catch { /* тихо */ }
+}
+
+async function createWorkflow() {
+  try {
+    const res = await workflowApi.create({ agent_id: agent.value.id, name: 'Новый воркфлоу' })
+    router.push(`/cabinet/agents/${agent.value.id}/workflow/${res.data.id}`)
+  } catch (e) {
+    toast.error(e.response?.data?.detail || 'Ошибка создания воркфлоу')
+  }
+}
+
+async function deleteWorkflow(id) {
+  if (!confirm('Удалить воркфлоу?')) return
+  try {
+    await workflowApi.delete(id)
+    workflows.value = workflows.value.filter(w => w.id !== id)
+  } catch (e) {
+    toast.error(e.response?.data?.detail || 'Ошибка удаления')
+  }
+}
 
 async function reloadAgent() {
   const updated = await agentsStore.fetchAgent(route.params.id).catch(() => null)

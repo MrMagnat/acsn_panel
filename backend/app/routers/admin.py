@@ -428,6 +428,7 @@ async def create_tool(
         webhook_url=data.webhook_url,
         is_active=data.is_active,
         energy_cost=data.energy_cost,
+        output_fields=data.output_fields,
     )
     db.add(tool)
     await db.flush()

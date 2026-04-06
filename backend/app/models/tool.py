@@ -1,5 +1,6 @@
 from sqlalchemy import String, Boolean, Integer, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import JSON
 from .base import Base, gen_uuid
 
 
@@ -13,6 +14,8 @@ class Tool(Base):
     webhook_url: Mapped[str] = mapped_column(String(500), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     energy_cost: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    # Выходные поля: что инструмент возвращает. Формат: [{"name": "result"}, {"name": "email"}]
+    output_fields: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
     fields: Mapped[list["ToolField"]] = relationship("ToolField", back_populates="tool", cascade="all, delete-orphan")
     agent_tools: Mapped[list["AgentTool"]] = relationship("AgentTool", back_populates="tool")

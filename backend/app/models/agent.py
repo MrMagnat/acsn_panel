@@ -25,3 +25,4 @@ class UserAgent(Base):
     agent_tools: Mapped[list["AgentTool"]] = relationship("AgentTool", back_populates="agent", cascade="all, delete-orphan")
     chat_messages: Mapped[list["ChatMessage"]] = relationship("ChatMessage", back_populates="agent", cascade="all, delete-orphan")
     auto_triggers: Mapped[list["AutoTrigger"]] = relationship("AutoTrigger", back_populates="agent", cascade="all, delete-orphan")
+    workflows: Mapped[list["Workflow"]] = relationship("Workflow", back_populates="agent", cascade="all, delete-orphan")

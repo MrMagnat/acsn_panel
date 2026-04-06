@@ -76,6 +76,30 @@
           <label class="text-sm text-gray-700">Активен (доступен пользователям)</label>
         </div>
 
+        <!-- Выходные данные (output_fields) -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <label class="label mb-0">Выходные данные (для воркфлоу)</label>
+            <button class="text-xs text-primary-600 hover:underline" @click="addOutputField">+ Добавить выход</button>
+          </div>
+          <p class="text-xs text-gray-400 mb-2">Укажите какие ключи возвращает webhook. Они будут доступны как входные данные для следующих блоков воркфлоу.</p>
+          <div class="space-y-2">
+            <div
+              v-for="(out, idx) in form.output_fields"
+              :key="idx"
+              class="flex items-center gap-2 p-2 rounded-lg bg-green-50 border border-green-100"
+            >
+              <span class="text-green-600 text-xs">→</span>
+              <input v-model="out.name" class="input text-xs flex-1" placeholder="result, email, message..." />
+              <input v-model="out.description" class="input text-xs flex-1" placeholder="Описание (необязательно)" />
+              <button class="text-red-400 hover:text-red-600 text-xs" @click="removeOutputField(idx)">✕</button>
+            </div>
+            <div v-if="!form.output_fields.length" class="text-xs text-gray-400 py-2 text-center">
+              Нет выходных данных — инструмент не передаёт данные другим блокам
+            </div>
+          </div>
+        </div>
+
         <!-- Поля вебхука -->
         <div>
           <div class="flex items-center justify-between mb-3">
@@ -181,7 +205,7 @@ const selected = ref(null)
 
 const form = ref({
   name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true,
-  energy_cost: 10, fields: [],
+  energy_cost: 10, fields: [], output_fields: [],
 })
 
 onMounted(async () => {
@@ -200,16 +224,25 @@ function selectTool(tool) {
     is_active: tool.is_active,
     energy_cost: tool.energy_cost,
     fields: tool.fields?.map((f) => ({ ...f })) ?? [],
+    output_fields: tool.output_fields?.map((f) => ({ ...f })) ?? [],
   }
 }
 
 function openCreate() {
   selected.value = { id: null }
-  form.value = { name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true, energy_cost: 10, fields: [] }
+  form.value = { name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true, energy_cost: 10, fields: [], output_fields: [] }
 }
 
 function addField() {
   form.value.fields.push({ field_name: '', hint: '', required: false, field_type: 'text', sort_order: form.value.fields.length, is_runtime: false, options: null })
+}
+
+function addOutputField() {
+  form.value.output_fields.push({ name: '', description: '' })
+}
+
+function removeOutputField(idx) {
+  form.value.output_fields.splice(idx, 1)
 }
 
 // Конвертация options JSON <-> текст (одна строка = один вариант)

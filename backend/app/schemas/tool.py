@@ -30,6 +30,7 @@ class ToolBase(BaseModel):
     webhook_url: str
     is_active: bool = True
     energy_cost: int = 10
+    output_fields: list = []  # [{"name": "result"}, ...]
 
 
 class ToolCreate(ToolBase):
@@ -44,6 +45,7 @@ class ToolUpdate(BaseModel):
     is_active: Optional[bool] = None
     energy_cost: Optional[int] = None
     fields: Optional[list[ToolFieldCreate]] = None
+    output_fields: Optional[list] = None
 
 
 class ToolResponse(ToolBase):
