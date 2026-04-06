@@ -43,9 +43,44 @@
 
       <!-- Left sidebar: tool palette -->
       <aside class="w-56 bg-white border-r border-gray-100 flex flex-col shrink-0 overflow-y-auto">
+
+        <!-- Триггеры -->
         <div class="px-4 pt-4 pb-2">
+          <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Триггеры</div>
+        </div>
+        <div class="px-3 space-y-2 pb-3">
+          <div
+            v-for="trig in TRIGGER_TYPES"
+            :key="trig.type"
+            class="p-2.5 rounded-xl border border-emerald-200 bg-emerald-50 cursor-grab hover:border-emerald-400 hover:bg-emerald-100 transition-colors select-none flex items-center gap-2"
+            draggable="true"
+            @dragstart="onDragStartSpecial($event, { nodeType: 'trigger', triggerType: trig.type })"
+          >
+            <span class="text-base">{{ trig.icon }}</span>
+            <div>
+              <div class="text-xs font-medium text-emerald-800">{{ trig.label }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Точка выхода -->
+        <div class="px-4 pb-2">
+          <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Выход</div>
+        </div>
+        <div class="px-3 pb-3">
+          <div
+            class="p-2.5 rounded-xl border border-indigo-200 bg-indigo-50 cursor-grab hover:border-indigo-400 hover:bg-indigo-100 transition-colors select-none flex items-center gap-2"
+            draggable="true"
+            @dragstart="onDragStartSpecial($event, { nodeType: 'output' })"
+          >
+            <span class="text-base">🏁</span>
+            <div class="text-xs font-medium text-indigo-800">Точка выхода</div>
+          </div>
+        </div>
+
+        <!-- Инструменты -->
+        <div class="px-4 pb-2 border-t border-gray-100 pt-3">
           <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Инструменты агента</div>
-          <p class="text-xs text-gray-400 mb-3">Перетащите блок на холст</p>
         </div>
         <div class="px-3 space-y-2 pb-4">
           <div
@@ -101,6 +136,8 @@
         <aside v-if="selectedNodeId" class="w-72 bg-white border-l border-gray-100 flex flex-col shrink-0">
           <NodeConfigPanel
             :node-id="selectedNodeId"
+            :node-type="selectedNode?.type"
+            :node-data="selectedNode?.data"
             :agent-tool="selectedAgentTool"
             :input-data="selectedNode?.data?.input_data ?? {}"
             @update="onNodeDataUpdate"
@@ -149,6 +186,8 @@ import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 
 import ToolNode from '@/components/workflow/ToolNode.vue'
+import TriggerNode from '@/components/workflow/TriggerNode.vue'
+import OutputNode from '@/components/workflow/OutputNode.vue'
 import NodeConfigPanel from '@/components/workflow/NodeConfigPanel.vue'
 import { workflowApi } from '@/api/workflow'
 import { agentsApi } from '@/api/agents'
@@ -161,7 +200,13 @@ const toast = useToastStore()
 const workflowId = route.params.workflowId
 const agentId = route.params.agentId
 
-const nodeTypes = { tool: markRaw(ToolNode) }
+const nodeTypes = { tool: markRaw(ToolNode), trigger: markRaw(TriggerNode), output: markRaw(OutputNode) }
+
+const TRIGGER_TYPES = [
+  { type: 'manual', icon: '▶', label: 'Вручную' },
+  { type: 'chat', icon: '💬', label: 'Из чата' },
+  { type: 'cron', icon: '🕐', label: 'По расписанию' },
+]
 
 const { screenToFlowCoordinate } = useVueFlow()
 
@@ -209,12 +254,16 @@ onMounted(async () => {
 
 function loadGraph(graph) {
   if (!graph) return
-  nodes.value = (graph.nodes ?? []).map((n) => ({
-    id: n.id,
-    type: 'tool',
-    position: n.position,
-    data: buildNodeData(n),
-  }))
+  nodes.value = (graph.nodes ?? []).map((n) => {
+    const nodeType = n.node_type || (n.tool_id ? 'tool' : 'trigger')
+    if (nodeType === 'trigger') {
+      return { id: n.id, type: 'trigger', position: n.position, data: { triggerType: n.triggerType ?? 'manual', schedule: n.schedule ?? '', timezone: n.timezone ?? 'UTC', label: n.label ?? '' } }
+    }
+    if (nodeType === 'output') {
+      return { id: n.id, type: 'output', position: n.position, data: { webhook_url: n.webhook_url ?? '', label: n.label ?? '' } }
+    }
+    return { id: n.id, type: 'tool', position: n.position, data: buildNodeData(n) }
+  })
   edges.value = (graph.edges ?? []).map((e) => ({
     ...e,
     type: 'smoothstep',
@@ -236,20 +285,40 @@ function buildNodeData(node) {
 
 // Drag & drop from palette
 let draggedTool = null
+let draggedSpecial = null
 
 function onDragStart(event, agentTool) {
   draggedTool = agentTool
+  draggedSpecial = null
+  event.dataTransfer.effectAllowed = 'move'
+}
+
+function onDragStartSpecial(event, spec) {
+  draggedSpecial = spec
+  draggedTool = null
   event.dataTransfer.effectAllowed = 'move'
 }
 
 function onDrop(event) {
-  if (!draggedTool) return
-  const position = screenToFlowCoordinate({
-    x: event.clientX,
-    y: event.clientY,
-  })
-
+  const position = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
   const nodeId = `node-${Date.now()}`
+
+  if (draggedSpecial) {
+    let newNode
+    if (draggedSpecial.nodeType === 'trigger') {
+      newNode = { id: nodeId, type: 'trigger', position, data: { triggerType: draggedSpecial.triggerType, schedule: '', timezone: 'UTC', label: '' } }
+    } else if (draggedSpecial.nodeType === 'output') {
+      newNode = { id: nodeId, type: 'output', position, data: { webhook_url: '', label: '' } }
+    }
+    if (newNode) {
+      nodes.value = [...nodes.value, newNode]
+      selectedNodeId.value = nodeId
+    }
+    draggedSpecial = null
+    return
+  }
+
+  if (!draggedTool) return
   const newNode = {
     id: nodeId,
     type: 'tool',
@@ -284,23 +353,24 @@ function onNodeClick({ node }) {
   selectedNodeId.value = node.id
 }
 
-function onNodeDataUpdate(newInputData) {
-  nodes.value = nodes.value.map((n) =>
-    n.id === selectedNodeId.value
-      ? { ...n, data: { ...n.data, input_data: newInputData } }
-      : n
-  )
+function onNodeDataUpdate(newData) {
+  nodes.value = nodes.value.map((n) => {
+    if (n.id !== selectedNodeId.value) return n
+    // tool nodes: newData is input_data; trigger/output nodes: newData is full data merge
+    if (n.type === 'tool') return { ...n, data: { ...n.data, input_data: newData } }
+    return { ...n, data: { ...n.data, ...newData } }
+  })
 }
 
 async function saveGraph() {
   saving.value = true
   const graph = {
-    nodes: nodes.value.map((n) => ({
-      id: n.id,
-      tool_id: n.data.tool_id,
-      position: n.position,
-      input_data: n.data.input_data ?? {},
-    })),
+    nodes: nodes.value.map((n) => {
+      const base = { id: n.id, node_type: n.type, position: n.position }
+      if (n.type === 'trigger') return { ...base, triggerType: n.data.triggerType, schedule: n.data.schedule, timezone: n.data.timezone, label: n.data.label }
+      if (n.type === 'output') return { ...base, webhook_url: n.data.webhook_url, label: n.data.label }
+      return { ...base, tool_id: n.data.tool_id, input_data: n.data.input_data ?? {} }
+    }),
     edges: edges.value.map((e) => ({
       id: e.id,
       source: e.source,

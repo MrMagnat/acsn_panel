@@ -3,14 +3,56 @@
     <!-- Header -->
     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
       <div>
-        <div class="font-semibold text-sm text-gray-900">{{ agentTool?.tool?.name }}</div>
-        <div class="text-xs text-gray-400 mt-0.5">⚡ {{ agentTool?.tool?.energy_cost }} за запуск</div>
+        <div class="font-semibold text-sm text-gray-900">
+          <span v-if="nodeType === 'trigger'">{{ triggerLabels[nodeData?.triggerType] ?? 'Триггер' }}</span>
+          <span v-else-if="nodeType === 'output'">Точка выхода</span>
+          <span v-else>{{ agentTool?.tool?.name }}</span>
+        </div>
+        <div class="text-xs text-gray-400 mt-0.5">
+          <span v-if="nodeType === 'trigger'">Начало цепочки</span>
+          <span v-else-if="nodeType === 'output'">Конец цепочки</span>
+          <span v-else>⚡ {{ agentTool?.tool?.energy_cost }} за запуск</span>
+        </div>
       </div>
       <button class="text-gray-400 hover:text-gray-600 text-lg" @click="$emit('close')">✕</button>
     </div>
 
-    <!-- Fields -->
-    <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+    <!-- Trigger config -->
+    <div v-if="nodeType === 'trigger'" class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div>
+        <label class="text-xs font-medium text-gray-600 mb-1 block">Тип триггера</label>
+        <select v-model="triggerLocal.triggerType" class="input text-sm" @change="emitSpecial">
+          <option value="manual">▶ Вручную</option>
+          <option value="chat">💬 Из чата</option>
+          <option value="cron">🕐 По расписанию</option>
+        </select>
+      </div>
+      <div v-if="triggerLocal.triggerType === 'cron'">
+        <label class="text-xs font-medium text-gray-600 mb-1 block">Расписание (CRON)</label>
+        <input v-model="triggerLocal.schedule" class="input text-sm font-mono" placeholder="0 9 * * 1-5" @input="emitSpecial" />
+        <p class="text-xs text-gray-400 mt-0.5">Например: <code>0 9 * * 1-5</code> — каждый будний день в 9:00</p>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-600 mb-1 block">Метка (необязательно)</label>
+        <input v-model="triggerLocal.label" class="input text-sm" placeholder="Мой триггер" @input="emitSpecial" />
+      </div>
+    </div>
+
+    <!-- Output config -->
+    <div v-else-if="nodeType === 'output'" class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div>
+        <label class="text-xs font-medium text-gray-600 mb-1 block">Webhook URL для отправки результата</label>
+        <input v-model="outputLocal.webhook_url" class="input text-sm font-mono" placeholder="https://..." @input="emitSpecial" />
+        <p class="text-xs text-gray-400 mt-1">После выполнения цепочки все данные будут отправлены POST-запросом на этот URL</p>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-600 mb-1 block">Метка (необязательно)</label>
+        <input v-model="outputLocal.label" class="input text-sm" placeholder="Выход" @input="emitSpecial" />
+      </div>
+    </div>
+
+    <!-- Tool config -->
+    <div v-else class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
       <div v-if="!inputFields.length" class="text-sm text-gray-400 text-center py-6">
         У этого инструмента нет настраиваемых полей
       </div>
@@ -76,6 +118,8 @@ import { useVueFlow } from '@vue-flow/core'
 
 const props = defineProps({
   nodeId: { type: String, required: true },
+  nodeType: { type: String, default: 'tool' },
+  nodeData: { type: Object, default: () => ({}) },
   agentTool: { type: Object, default: null },
   inputData: { type: Object, default: () => ({}) },
 })
@@ -83,25 +127,31 @@ const emits = defineEmits(['update', 'close'])
 
 const { getEdges, findNode } = useVueFlow()
 
+// Tool node state
 const localData = ref({ ...(props.inputData || {}) })
+watch(() => props.inputData, (val) => { localData.value = { ...(val || {}) } }, { deep: true })
 
-watch(() => props.inputData, (val) => {
-  localData.value = { ...(val || {}) }
+// Trigger node state
+const triggerLocal = ref({ triggerType: 'manual', schedule: '', timezone: 'UTC', label: '', ...(props.nodeData || {}) })
+watch(() => props.nodeData, (val) => {
+  if (props.nodeType === 'trigger') triggerLocal.value = { triggerType: 'manual', schedule: '', timezone: 'UTC', label: '', ...(val || {}) }
+  if (props.nodeType === 'output') outputLocal.value = { webhook_url: '', label: '', ...(val || {}) }
 }, { deep: true })
+
+// Output node state
+const outputLocal = ref({ webhook_url: '', label: '', ...(props.nodeData || {}) })
+
+const triggerLabels = { manual: 'Запуск вручную', chat: 'Из чата', cron: 'По расписанию' }
 
 const inputFields = computed(() => props.agentTool?.tool?.fields ?? [])
 const outputFields = computed(() => props.agentTool?.tool?.output_fields ?? [])
 
 function isConnected(fieldName) {
-  return getEdges.value.some(
-    (e) => e.target === props.nodeId && e.targetHandle === fieldName
-  )
+  return getEdges.value.some((e) => e.target === props.nodeId && e.targetHandle === fieldName)
 }
 
 function getConnectionSource(fieldName) {
-  const edge = getEdges.value.find(
-    (e) => e.target === props.nodeId && e.targetHandle === fieldName
-  )
+  const edge = getEdges.value.find((e) => e.target === props.nodeId && e.targetHandle === fieldName)
   if (!edge) return ''
   const srcNode = findNode(edge.source)
   return `${srcNode?.data?.toolName ?? edge.source} → ${edge.sourceHandle}`
@@ -115,5 +165,10 @@ function parseOptions(opts) {
 
 function emitUpdate() {
   emits('update', { ...localData.value })
+}
+
+function emitSpecial() {
+  if (props.nodeType === 'trigger') emits('update', { ...triggerLocal.value })
+  if (props.nodeType === 'output') emits('update', { ...outputLocal.value })
 }
 </script>

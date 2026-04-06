@@ -169,6 +169,19 @@ async def run_workflow(
 
             node_outputs[node_id] = output if isinstance(output, dict) else {"result": output}
 
+        # Обрабатываем output-ноды: отправляем все результаты на webhook_url
+        for node in nodes_list:
+            if node.get("node_type") == "output" and node.get("webhook_url"):
+                try:
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        await client.post(node["webhook_url"], json={
+                            "outputs": node_outputs,
+                            "workflow_run_id": str(run.id),
+                            "agent_id": str(workflow.agent_id),
+                        })
+                except Exception as out_err:
+                    logger.warning(f"Output node webhook failed: {out_err}")
+
         run.status = "success"
         run.result_json = node_outputs
         run.finished_at = datetime.now(timezone.utc)
