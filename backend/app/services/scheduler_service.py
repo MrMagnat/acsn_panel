@@ -104,6 +104,13 @@ async def execute_trigger(trigger_id: str, agent_id: str, tool_id: str) -> None:
 
     async with AsyncSessionLocal() as db:
         try:
+            # Загружаем триггер для получения input_data
+            trigger_result = await db.execute(
+                select(AutoTrigger).where(AutoTrigger.id == trigger_id)
+            )
+            trigger_obj = trigger_result.scalar_one_or_none()
+            trigger_input_data = (trigger_obj.input_data or {}) if trigger_obj else {}
+
             # Загружаем агент и инструмент
             agent_result = await db.execute(
                 select(UserAgent)
@@ -164,9 +171,12 @@ async def execute_trigger(trigger_id: str, agent_id: str, tool_id: str) -> None:
             await db.flush()  # получаем run_log.id
             run_log.instance_id = str(run_log.id)
 
+            # Мержим: field_values инструмента — база, input_data триггера — перекрывает
+            merged_fields = {**(agent_tool.field_values or {}), **trigger_input_data}
+
             # Вызываем webhook
             payload = {
-                "fields": agent_tool.field_values,
+                "fields": merged_fields,
                 "args": {},
                 "agent_id": agent_id,
                 "user_id": agent.user_id,
