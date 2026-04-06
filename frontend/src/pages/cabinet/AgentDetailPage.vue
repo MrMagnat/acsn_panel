@@ -32,6 +32,7 @@
           <ChatWindow
             :agent-id="agent.id"
             :energy-left="agent.energy_left"
+            :suggestions="agent.prompt_suggestions ?? []"
             @energy-updated="agent.energy_left = $event"
             @trigger-created="reloadAgent"
             @tool-run="loadRunLogs"

@@ -293,6 +293,7 @@ async def create_template_agent(
     _: User = Depends(get_current_admin),
 ):
     """Создать шаблонный агент."""
+    import json as _json
     template = TemplateAgent(
         name=data.name,
         description=data.description,
@@ -303,6 +304,7 @@ async def create_template_agent(
         skills=data.skills,
         energy_per_chat=data.energy_per_chat,
         is_active=data.is_active,
+        prompt_suggestions=_json.dumps(data.prompt_suggestions, ensure_ascii=False),
     )
     db.add(template)
     await db.flush()
@@ -332,8 +334,11 @@ async def update_template_agent(
     """Обновить шаблонный агент."""
     template = await _get_template(template_id, db)
 
-    for field, value in data.model_dump(exclude_none=True, exclude={"tool_ids"}).items():
+    import json as _json
+    for field, value in data.model_dump(exclude_none=True, exclude={"tool_ids", "prompt_suggestions"}).items():
         setattr(template, field, value)
+    if data.prompt_suggestions is not None:
+        template.prompt_suggestions = _json.dumps(data.prompt_suggestions, ensure_ascii=False)
 
     if data.tool_ids is not None:
         await _sync_template_tools(template_id, data.tool_ids, db)
@@ -486,5 +491,6 @@ def _template_to_response(template: TemplateAgent) -> TemplateAgentResponse:
         skills=template.skills,
         energy_per_chat=template.energy_per_chat,
         is_active=template.is_active,
+        prompt_suggestions=template.prompt_suggestions,
         tools=tools,
     )

@@ -93,6 +93,20 @@
               <input type="checkbox" v-model="form.is_active" class="w-4 h-4 rounded" />
               <label class="text-sm text-gray-700">Активен (виден пользователям)</label>
             </div>
+
+            <!-- Подсказки -->
+            <div>
+              <label class="label">Быстрые подсказки <span class="text-xs font-normal text-gray-400">(до 3 кнопок над полем ввода)</span></label>
+              <div class="space-y-2">
+                <input
+                  v-for="(_, i) in 3"
+                  :key="i"
+                  v-model="form.prompt_suggestions[i]"
+                  class="input text-sm"
+                  :placeholder="`Подсказка ${i + 1}, напр. «Что ты умеешь?»`"
+                />
+              </div>
+            </div>
           </div>
 
           <!-- Вкладка: Промпт и скиллы -->
@@ -172,7 +186,7 @@ const tabs = [
 
 const form = ref({
   name: '', description: '', llm_url: '', llm_model: '', llm_token: '', prompt: '', skills: '',
-  is_active: true, energy_per_chat: 5, tool_ids: [],
+  is_active: true, energy_per_chat: 5, tool_ids: [], prompt_suggestions: ['', '', ''],
 })
 
 const totalEnergy = computed(() => {
@@ -193,6 +207,7 @@ onMounted(async () => {
 function selectTemplate(t) {
   selected.value = t
   activeTab.value = 'basic'
+  const s = t.prompt_suggestions ?? []
   form.value = {
     name: t.name,
     description: t.description,
@@ -204,25 +219,27 @@ function selectTemplate(t) {
     is_active: t.is_active,
     energy_per_chat: t.energy_per_chat,
     tool_ids: t.tools?.map((tool) => tool.id) ?? [],
+    prompt_suggestions: [s[0] ?? '', s[1] ?? '', s[2] ?? ''],
   }
 }
 
 function openCreate() {
   selected.value = { id: null }
   activeTab.value = 'basic'
-  form.value = { name: '', description: '', llm_url: '', llm_model: '', llm_token: '', prompt: '', skills: '', is_active: true, energy_per_chat: 5, tool_ids: [] }
+  form.value = { name: '', description: '', llm_url: '', llm_model: '', llm_token: '', prompt: '', skills: '', is_active: true, energy_per_chat: 5, tool_ids: [], prompt_suggestions: ['', '', ''] }
 }
 
 async function saveTemplate() {
   saving.value = true
   try {
+    const payload = { ...form.value, prompt_suggestions: form.value.prompt_suggestions.filter(s => s.trim()) }
     if (selected.value.id) {
-      const res = await adminApi.updateTemplate(selected.value.id, form.value)
+      const res = await adminApi.updateTemplate(selected.value.id, payload)
       selected.value = res.data
       const idx = templates.value.findIndex((t) => t.id === selected.value.id)
       if (idx !== -1) templates.value[idx] = res.data
     } else {
-      const res = await adminApi.createTemplate(form.value)
+      const res = await adminApi.createTemplate(payload)
       templates.value.push(res.data)
       selected.value = res.data
     }

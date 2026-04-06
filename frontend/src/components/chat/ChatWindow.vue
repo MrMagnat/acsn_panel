@@ -106,6 +106,17 @@
       Потрачено ⚡{{ lastEnergySpent }}, осталось ⚡{{ currentEnergyLeft }}
     </div>
 
+    <!-- Быстрые подсказки -->
+    <div v-if="props.suggestions?.length" class="px-4 pt-2 pb-1 flex flex-wrap gap-1.5">
+      <button
+        v-for="s in props.suggestions"
+        :key="s"
+        class="text-xs px-3 py-1.5 rounded-full border border-primary-200 text-primary-600 bg-primary-50 hover:bg-primary-100 transition-colors"
+        :disabled="sending"
+        @click="sendSuggestion(s)"
+      >{{ s }}</button>
+    </div>
+
     <!-- Поле ввода -->
     <div class="px-4 py-3 border-t border-gray-100 flex gap-2">
       <input
@@ -245,6 +256,7 @@ import ResultRenderer from '@/components/tools/ResultRenderer.vue'
 const props = defineProps({
   agentId: { type: String, required: true },
   energyLeft: { type: Number, default: 0 },
+  suggestions: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['energy-updated', 'trigger-created', 'tool-run', 'settings-saved'])
 
@@ -272,6 +284,11 @@ function switchToOwnKey() {
   showBalancePopup.value = false
   selectedProvider.value = 'openrouter'
   selectedModel.value = ''
+}
+
+function sendSuggestion(text) {
+  inputText.value = text
+  sendMessage()
 }
 
 // Попап результата

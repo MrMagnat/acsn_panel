@@ -16,6 +16,7 @@ class TemplateAgent(Base):
     skills: Mapped[str] = mapped_column(Text, default="")
     energy_per_chat: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    prompt_suggestions: Mapped[str] = mapped_column(Text, default="[]")
 
     template_tools: Mapped[list["TemplateAgentTool"]] = relationship("TemplateAgentTool", back_populates="template", cascade="all, delete-orphan")
 

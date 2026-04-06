@@ -18,6 +18,7 @@ class UserAgent(Base):
     prompt: Mapped[str] = mapped_column(Text, default="")
     skills: Mapped[str] = mapped_column(Text, default="")
     energy_per_chat: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+    prompt_suggestions: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="agents")

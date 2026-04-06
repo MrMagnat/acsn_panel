@@ -1,5 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
+import json
 from datetime import datetime
 from .tool import ToolResponse
 from .trigger import TriggerResponse
@@ -31,6 +32,7 @@ class AgentUpdate(BaseModel):
     prompt: Optional[str] = None
     skills: Optional[str] = None
     energy_per_chat: Optional[int] = None
+    prompt_suggestions: Optional[list[str]] = None
 
 
 class AgentResponse(BaseModel):
@@ -45,9 +47,20 @@ class AgentResponse(BaseModel):
     prompt: str
     skills: str
     energy_per_chat: int
+    prompt_suggestions: list[str] = []
     created_at: datetime
     agent_tools: list[AgentToolResponse] = []
     auto_triggers: list[TriggerResponse] = []
+
+    @field_validator('prompt_suggestions', mode='before')
+    @classmethod
+    def parse_suggestions(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except Exception:
+                return []
+        return v or []
 
     model_config = {"from_attributes": True}
 

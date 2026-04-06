@@ -159,8 +159,10 @@ async def update_agent(agent_id: str, user_id: str, data: AgentUpdate, db: Async
     """Обновляем поля агента."""
     agent = await get_agent_by_id(agent_id, user_id, db)
 
-    for field, value in data.model_dump(exclude_none=True).items():
+    for field, value in data.model_dump(exclude_none=True, exclude={"prompt_suggestions"}).items():
         setattr(agent, field, value)
+    if data.prompt_suggestions is not None:
+        agent.prompt_suggestions = _json_module.dumps(data.prompt_suggestions, ensure_ascii=False)
 
     await db.flush()
     # Возвращаем с перезагрузкой чтобы все связи были доступны
