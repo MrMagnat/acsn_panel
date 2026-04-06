@@ -99,6 +99,15 @@
       <div v-if="messages.length === 0 && !loading" class="text-center text-gray-300 py-8 text-sm">
         Начните диалог с агентом
       </div>
+
+      <!-- Индикатор "печатает..." -->
+      <div v-if="sending" class="flex justify-start">
+        <div class="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center gap-1.5">
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+        </div>
+      </div>
     </div>
 
     <!-- Энергия -->
