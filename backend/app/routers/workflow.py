@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -89,13 +89,22 @@ async def delete_workflow(
 @router.post("/{workflow_id}/run", response_model=WorkflowRunResponse)
 async def run_workflow_endpoint(
     workflow_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Запустить воркфлоу вручную."""
     await _get_workflow_for_user(workflow_id, current_user.id, db)
-    run = await run_workflow(workflow_id, current_user.id, db, trigger_type="manual")
+    base_url = _public_base_url(request)
+    run = await run_workflow(workflow_id, current_user.id, db, trigger_type="manual", base_url=base_url)
     return run
+
+
+def _public_base_url(request: Request) -> str:
+    """Строим публичный базовый URL из forwarded-заголовков nginx."""
+    proto = request.headers.get("x-forwarded-proto", "http")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "localhost:8000")
+    return f"{proto}://{host}/api"
 
 
 @router.get("/{workflow_id}/running-status")

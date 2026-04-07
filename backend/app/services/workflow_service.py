@@ -22,7 +22,7 @@ from ..models.energy_transaction import EnergyTransaction
 
 logger = logging.getLogger(__name__)
 
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000/api")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000/api")  # fallback only
 
 # In-memory store for async callbacks (single-process)
 _callback_events: dict[str, asyncio.Event] = {}
@@ -79,12 +79,13 @@ def _is_ack_only(data: dict) -> bool:
     return len(meaningful) == 0
 
 
-def register_callback(run_id: str, node_id: str) -> str:
+def register_callback(run_id: str, node_id: str, base_url: str = None) -> str:
     """Регистрируем ожидание callback, возвращаем URL."""
     key = f"{run_id}:{node_id}"
     _callback_events[key] = asyncio.Event()
     token = _callback_token(run_id, node_id)
-    return f"{APP_BASE_URL}/workflows/runs/{run_id}/callback/{node_id}?token={token}"
+    url = base_url or APP_BASE_URL
+    return f"{url}/workflows/runs/{run_id}/callback/{node_id}?token={token}"
 
 
 def receive_callback(run_id: str, node_id: str, token: str, data: dict) -> bool:
@@ -144,7 +145,9 @@ async def run_workflow(
     user_id: str,
     db: AsyncSession,
     trigger_type: str = "manual",
+    base_url: str = None,
 ) -> WorkflowRun:
+    effective_base_url = base_url or APP_BASE_URL
     """Запускаем воркфлоу: загружаем граф, сортируем, выполняем по цепочке."""
 
     wf_result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
@@ -267,7 +270,7 @@ async def run_workflow(
             _set_node_status(str(workflow.id), node_id, "running")
 
             # Регистрируем callback до отправки webhook
-            callback_url = register_callback(str(run.id), node_id)
+            callback_url = register_callback(str(run.id), node_id, effective_base_url)
 
             payload = {
                 **fields,           # плоская структура для совместимости
