@@ -41,6 +41,7 @@ services:
       ADMIN_EMAIL: admin@ascn.io
       ADMIN_PASSWORD: admin123
       SUBSCRIPTION_WEBHOOK_SECRET: webhook_secret
+      APP_BASE_URL: http://85.193.84.93/api
     ports:
       - "8000:8000"
     depends_on:
