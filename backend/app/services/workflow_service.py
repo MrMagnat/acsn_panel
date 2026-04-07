@@ -39,6 +39,13 @@ def _callback_token(run_id: str, node_id: str) -> str:
     return hashlib.sha256(f"{run_id}:{node_id}:wf_secret".encode()).hexdigest()[:20]
 
 
+def _extract_output(response: dict) -> dict:
+    """Извлекаем полезные данные из стандартного формата ответа {instanceId, status, data: {...}}."""
+    if isinstance(response, dict) and isinstance(response.get("data"), dict):
+        return response["data"]
+    return response if isinstance(response, dict) else {"result": response}
+
+
 def _is_ack_only(data: dict) -> bool:
     """True если ответ — подтверждение получения, без полезных данных. Ждём callback."""
     if not isinstance(data, dict) or not data:
@@ -249,14 +256,14 @@ async def run_workflow(
 
             if direct_output and not _is_ack_only(direct_output):
                 # Синхронный инструмент — используем прямой ответ
-                node_outputs[node_id] = direct_output if isinstance(direct_output, dict) else {"result": direct_output}
+                node_outputs[node_id] = _extract_output(direct_output)
                 _callback_events.pop(f"{run.id}:{node_id}", None)
                 _callback_results.pop(f"{run.id}:{node_id}", None)
             else:
                 # Асинхронный инструмент — ждём callback
                 logger.info(f"Ждём callback от '{agent_tool.tool.name}' (node {node_id})")
                 cb_data = await _wait_for_callback(str(run.id), node_id, timeout=120.0)
-                node_outputs[node_id] = cb_data if isinstance(cb_data, dict) else {"result": cb_data}
+                node_outputs[node_id] = _extract_output(cb_data)
 
         run.status = "success"
         run.result_json = node_outputs
