@@ -409,9 +409,9 @@ def schedule_workflow_crons(workflow: "Workflow") -> None:
                 id=job_id,
                 replace_existing=True,
             )
-            logger.info(f"Workflow {workflow.id} cron зарегистрирован: {schedule} ({timezone})")
+            logger.warning(f"Workflow {workflow.id} cron зарегистрирован: {schedule} ({timezone})")
         except Exception as e:
-            logger.error(f"Workflow {workflow.id} ошибка регистрации cron: {e}")
+            logger.warning(f"Workflow {workflow.id} ошибка регистрации cron: {e}")
 
 
 def unschedule_workflow(workflow_id: str) -> None:
@@ -438,7 +438,7 @@ async def _execute_workflow_cron(workflow_id: str, agent_id: str) -> None:
         if not agent:
             logger.warning(f"Workflow cron {workflow_id}: агент {agent_id} не найден")
             return
-        logger.info(f"Workflow cron: запускаем {workflow_id}")
+        logger.warning(f"Workflow cron: запускаем {workflow_id}")
         await run_workflow(workflow_id, agent.user_id, db, trigger_type="cron")
 
     return run
