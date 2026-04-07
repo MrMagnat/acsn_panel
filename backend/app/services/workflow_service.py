@@ -28,7 +28,11 @@ APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000/api")
 _callback_events: dict[str, asyncio.Event] = {}
 _callback_results: dict[str, dict] = {}
 
-ACK_ONLY_KEYS = {'status', 'message', 'ok', 'success', 'started', 'queued', 'accepted', 'received', 'error'}
+ACK_ONLY_KEYS = {'status', 'message', 'ok', 'success', 'started', 'queued', 'accepted',
+                 'received', 'error', 'instanceid', 'instance_id', 'jobid', 'job_id',
+                 'executionid', 'execution_id', 'taskid', 'task_id', 'requestid', 'request_id'}
+
+ASYNC_STATUS_VALUES = {'started', 'queued', 'accepted', 'received', 'processing', 'pending', 'running'}
 
 
 def _callback_token(run_id: str, node_id: str) -> str:
@@ -36,9 +40,14 @@ def _callback_token(run_id: str, node_id: str) -> str:
 
 
 def _is_ack_only(data: dict) -> bool:
-    """True если ответ — просто подтверждение получения, без полезных данных."""
+    """True если ответ — подтверждение получения, без полезных данных. Ждём callback."""
     if not isinstance(data, dict) or not data:
         return True
+    # Если status указывает на асинхронную обработку — это ack
+    status_val = str(data.get('status', '')).lower()
+    if status_val in ASYNC_STATUS_VALUES:
+        return True
+    # Если все ключи — служебные (id запроса, статус и т.д.) — это ack
     meaningful = {k for k in data if k.lower() not in ACK_ONLY_KEYS}
     return len(meaningful) == 0
 
