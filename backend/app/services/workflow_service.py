@@ -257,6 +257,7 @@ async def run_workflow(
 
                 if node_type == "kb_read":
                     limit = int(node.get("limit") or 100)
+                    selected_fields = node.get("selectedFields") or []
                     recs_result = await db.execute(
                         select(KBRecord).where(KBRecord.kb_id == kb_id)
                         .order_by(KBRecord.created_at.desc()).limit(limit)
@@ -264,7 +265,10 @@ async def run_workflow(
                     records = []
                     for rec in recs_result.scalars():
                         try:
-                            records.append(_json.loads(rec.data))
+                            row = _json.loads(rec.data)
+                            if selected_fields:
+                                row = {k: v for k, v in row.items() if k in selected_fields}
+                            records.append(row)
                         except Exception:
                             records.append({})
                     output = {"records": _json.dumps(records, ensure_ascii=False), "count": len(records)}
@@ -272,7 +276,10 @@ async def run_workflow(
                     _set_node_status(str(workflow.id), node_id, "success", output=output)
 
                 else:  # kb_write
-                    row_data = {}
+                    static_values = node.get("staticValues") or {}
+                    # Начинаем со статических значений из конфига
+                    row_data = {k: v for k, v in static_values.items() if v not in (None, "")}
+                    # Перекрываем данными из подключённых нод
                     for edge in edges_list:
                         if edge.get("target") == node_id:
                             tgt_handle = edge.get("targetHandle", "")
@@ -287,7 +294,6 @@ async def run_workflow(
                                 row_data[tgt_handle] = src_data[src_handle]
                             elif len(src_data) == 1:
                                 row_data[tgt_handle] = list(src_data.values())[0]
-                    row_data.update(node.get("input_data") or {})
 
                     new_record = KBRecord(
                         kb_id=kb_id,

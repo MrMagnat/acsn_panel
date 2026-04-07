@@ -94,18 +94,45 @@
     <div v-else-if="nodeType === 'kb_read'" class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block">База знаний</label>
-        <select class="input text-sm" :value="kbLocal.kb_id" @change="kbLocal.kb_id = $event.target.value; kbLocal.kb_name = kbNameById($event.target.value); emitKb()">
+        <select class="input text-sm" :value="kbLocal.kb_id" @change="onKbSelect($event.target.value)">
           <option value="">— выберите —</option>
           <option v-for="kb in userKbs" :key="kb.id" :value="kb.id">{{ kb.name }}</option>
         </select>
       </div>
+
+      <div v-if="kbFields.length">
+        <label class="text-xs font-medium text-gray-600 mb-2 block">Поля для вывода</label>
+        <div class="space-y-1.5">
+          <label
+            v-for="f in kbFields"
+            :key="f.name"
+            class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5"
+          >
+            <input
+              type="checkbox"
+              :value="f.name"
+              :checked="(kbLocal.selectedFields || []).includes(f.name)"
+              class="w-4 h-4 rounded"
+              @change="toggleField(f.name)"
+            />
+            <span class="text-gray-700">{{ f.name }}</span>
+            <span class="text-xs text-gray-400">{{ f.field_type }}</span>
+          </label>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">
+          {{ (kbLocal.selectedFields || []).length === 0 ? 'Все поля' : `Выбрано: ${(kbLocal.selectedFields || []).length}` }}
+        </p>
+      </div>
+      <div v-else-if="kbLocal.kb_id && kbLoading" class="text-xs text-gray-400">Загрузка полей...</div>
+
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block">Лимит строк</label>
         <input type="number" class="input text-sm" :value="kbLocal.limit || 100" min="1" max="1000"
-          @input="kbLocal.limit = $event.target.value; emitKb()" placeholder="100" />
+          @input="kbLocal.limit = parseInt($event.target.value) || 100; emitKb()" placeholder="100" />
       </div>
-      <div class="p-3 bg-blue-50 rounded-xl border border-blue-100 text-xs text-blue-700">
-        Передаёт дальше: <strong>records</strong> (JSON массив) и <strong>count</strong> (кол-во строк)
+
+      <div v-if="kbLocal.kb_id" class="p-3 bg-blue-50 rounded-xl border border-blue-100 text-xs text-blue-700">
+        Передаёт: <strong>records</strong> (массив строк) и <strong>count</strong>
       </div>
     </div>
 
@@ -113,14 +140,38 @@
     <div v-else-if="nodeType === 'kb_write'" class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block">База знаний</label>
-        <select class="input text-sm" :value="kbLocal.kb_id" @change="kbLocal.kb_id = $event.target.value; kbLocal.kb_name = kbNameById($event.target.value); emitKb()">
+        <select class="input text-sm" :value="kbLocal.kb_id" @change="onKbSelect($event.target.value)">
           <option value="">— выберите —</option>
           <option v-for="kb in userKbs" :key="kb.id" :value="kb.id">{{ kb.name }}</option>
         </select>
       </div>
-      <div class="p-3 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-700">
-        Данные передаются через соединение из предыдущей ноды. Подключите выход инструмента к входу этой ноды.
+
+      <div v-if="kbFields.length" class="space-y-3">
+        <label class="text-xs font-medium text-gray-600 block">Поля записи</label>
+        <div v-for="f in kbFields" :key="f.name" class="space-y-1">
+          <div class="text-xs font-medium text-gray-700 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+            {{ f.name }}
+          </div>
+          <div v-if="isConnected(f.name)" class="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg border border-purple-200 text-xs text-purple-700">
+            <span>🔗</span>
+            <span>{{ getConnectionSource(f.name) }}</span>
+          </div>
+          <input
+            v-else
+            class="input text-sm"
+            :value="(kbLocal.staticValues || {})[f.name] || ''"
+            :placeholder="`Значение для «${f.name}»`"
+            @input="setStaticValue(f.name, $event.target.value)"
+          />
+        </div>
+        <div class="p-3 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-700">
+          Каждое поле: либо подключи выход другой ноды, либо введи статическое значение.
+          Подключение приоритетнее статического значения.
+        </div>
       </div>
+      <div v-else-if="kbLocal.kb_id && kbLoading" class="text-xs text-gray-400">Загрузка полей...</div>
+      <div v-else-if="!kbLocal.kb_id" class="text-xs text-gray-400 text-center py-4">Сначала выберите базу знаний</div>
     </div>
 
     <!-- Tool config -->
@@ -219,6 +270,7 @@
 import { ref, watch, computed } from 'vue'
 import { useVueFlow } from '@vue-flow/core'
 import AiTokenField from '@/components/tools/AiTokenField.vue'
+import { kbApi } from '@/api/knowledge-base'
 
 const props = defineProps({
   nodeId: { type: String, required: true },
@@ -286,12 +338,53 @@ watch(() => [props.nodeId, props.nodeData], () => {
 }, { immediate: true, deep: true })
 
 // KB state
-const kbLocal = ref({ kb_id: '', kb_name: '', limit: 100 })
-watch(() => [props.nodeId, props.nodeData], () => {
+const kbLocal = ref({ kb_id: '', kb_name: '', limit: 100, selectedFields: [], fields: [], staticValues: {} })
+const kbFields = ref([])
+const kbLoading = ref(false)
+
+watch(() => [props.nodeId, props.nodeData], async () => {
   if (props.nodeType === 'kb_read' || props.nodeType === 'kb_write') {
-    kbLocal.value = { kb_id: '', kb_name: '', limit: 100, ...props.nodeData }
+    kbLocal.value = { kb_id: '', kb_name: '', limit: 100, selectedFields: [], fields: [], staticValues: {}, ...props.nodeData }
+    if (kbLocal.value.kb_id) await loadKbFields(kbLocal.value.kb_id)
   }
 }, { immediate: true, deep: true })
+
+async function loadKbFields(kbId) {
+  if (!kbId) { kbFields.value = []; return }
+  kbLoading.value = true
+  try {
+    const res = await kbApi.get(kbId)
+    kbFields.value = res.data.fields || []
+  } catch {
+    kbFields.value = []
+  } finally {
+    kbLoading.value = false
+  }
+}
+
+async function onKbSelect(kbId) {
+  kbLocal.value.kb_id = kbId
+  kbLocal.value.kb_name = kbNameById(kbId)
+  kbLocal.value.selectedFields = []
+  kbLocal.value.staticValues = {}
+  await loadKbFields(kbId)
+  kbLocal.value.fields = kbFields.value.map(f => f.name)
+  emitKb()
+}
+
+function toggleField(fieldName) {
+  const sel = [...(kbLocal.value.selectedFields || [])]
+  const idx = sel.indexOf(fieldName)
+  if (idx === -1) sel.push(fieldName)
+  else sel.splice(idx, 1)
+  kbLocal.value.selectedFields = sel
+  emitKb()
+}
+
+function setStaticValue(fieldName, value) {
+  kbLocal.value.staticValues = { ...(kbLocal.value.staticValues || {}), [fieldName]: value }
+  emitKb()
+}
 
 function kbNameById(id) {
   return props.userKbs.find(k => k.id === id)?.name || ''
