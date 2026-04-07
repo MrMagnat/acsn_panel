@@ -6,6 +6,9 @@
     <!-- Header -->
     <div class="tool-node__header" :style="{ background: accentColor }">
       <span class="tool-node__name">{{ data.toolName || 'Инструмент' }}</span>
+      <span v-if="data.runStatus === 'running'" class="tool-node__run-badge tool-node__run-badge--running">⟳</span>
+      <span v-else-if="data.runStatus === 'success'" class="tool-node__run-badge tool-node__run-badge--success">✓</span>
+      <span v-else-if="data.runStatus === 'error'" class="tool-node__run-badge tool-node__run-badge--error">✗</span>
     </div>
 
     <!-- Entry handle: for trigger connections (no field, just execution order) -->
@@ -133,13 +136,34 @@ const missingRequired = computed(() => {
   color: white;
   font-size: 13px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .tool-node__name {
-  display: block;
+  flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.tool-node__run-badge {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+.tool-node__run-badge--running {
+  background: rgba(255,255,255,0.3);
+  animation: spin 1s linear infinite;
+}
+.tool-node__run-badge--success { background: #10b981; }
+.tool-node__run-badge--error { background: #ef4444; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .tool-node__entry {
   display: flex;
   align-items: center;

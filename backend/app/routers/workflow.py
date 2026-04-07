@@ -10,7 +10,7 @@ from ..models.workflow import Workflow, WorkflowRun
 from ..models.agent import UserAgent
 from ..models.user import User
 from ..schemas.workflow import WorkflowCreate, WorkflowUpdate, WorkflowResponse, WorkflowRunResponse
-from ..services.workflow_service import run_workflow, receive_callback
+from ..services.workflow_service import run_workflow, receive_callback, get_run_statuses
 
 router = APIRouter(prefix="/workflows", tags=["Воркфлоу"])
 
@@ -96,6 +96,17 @@ async def run_workflow_endpoint(
     await _get_workflow_for_user(workflow_id, current_user.id, db)
     run = await run_workflow(workflow_id, current_user.id, db, trigger_type="manual")
     return run
+
+
+@router.get("/{workflow_id}/running-status")
+async def get_running_status(
+    workflow_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Live-статусы нод текущего запуска (in-memory, без DB)."""
+    await _get_workflow_for_user(workflow_id, current_user.id, db)
+    return get_run_statuses(workflow_id)
 
 
 @router.post("/runs/{run_id}/callback/{node_id}")

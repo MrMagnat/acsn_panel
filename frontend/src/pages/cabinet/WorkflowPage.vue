@@ -396,23 +396,57 @@ async function saveGraph() {
   }
 }
 
+let pollTimer = null
+
+function applyNodeStatuses(statuses) {
+  if (!statuses) return
+  nodes.value = nodes.value.map((n) => {
+    const s = statuses[n.id]
+    if (!s) return n
+    return { ...n, data: { ...n.data, runStatus: s.status } }
+  })
+}
+
+function clearNodeStatuses() {
+  nodes.value = nodes.value.map((n) => ({ ...n, data: { ...n.data, runStatus: null } }))
+}
+
 async function runWorkflow() {
   await saveGraph()
   running.value = true
+  clearNodeStatuses()
+
+  // Polling live статусов каждые 1.5 секунды
+  pollTimer = setInterval(async () => {
+    try {
+      const res = await workflowApi.runningStatus(workflowId)
+      if (res.data?.nodes) applyNodeStatuses(res.data.nodes)
+    } catch { /* тихо */ }
+  }, 1500)
+
   try {
     const res = await workflowApi.run(workflowId)
     lastRun.value = res.data
+    // Финальные статусы из result_json
+    if (res.data.result_json) {
+      const finalStatuses = {}
+      for (const nodeId of Object.keys(res.data.result_json)) {
+        finalStatuses[nodeId] = { status: res.data.status === 'error' ? 'error' : 'success' }
+      }
+      applyNodeStatuses(finalStatuses)
+    }
     if (res.data.status === 'success') {
       toast.success('Воркфлоу выполнен успешно')
-      showRunResult.value = true
     } else {
       toast.error(res.data.error || 'Ошибка выполнения')
-      showRunResult.value = true
     }
+    showRunResult.value = true
   } catch (e) {
     toast.error(e.response?.data?.detail || 'Ошибка запуска')
   } finally {
     running.value = false
+    clearInterval(pollTimer)
+    pollTimer = null
   }
 }
 

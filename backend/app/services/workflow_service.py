@@ -28,6 +28,26 @@ APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000/api")
 _callback_events: dict[str, asyncio.Event] = {}
 _callback_results: dict[str, dict] = {}
 
+# In-memory live execution statuses: workflow_id → {run_id, nodes: {node_id → {status, output, error}}}
+_run_statuses: dict[str, dict] = {}
+
+
+def get_run_statuses(workflow_id: str) -> dict:
+    return _run_statuses.get(str(workflow_id), {})
+
+
+def _init_statuses(workflow_id: str, run_id: str, tool_node_ids: list[str]):
+    _run_statuses[str(workflow_id)] = {
+        "run_id": str(run_id),
+        "nodes": {nid: {"status": "waiting"} for nid in tool_node_ids},
+    }
+
+
+def _set_node_status(workflow_id: str, node_id: str, status: str, output: dict = None, error: str = None):
+    wf = _run_statuses.get(str(workflow_id))
+    if wf:
+        wf["nodes"][node_id] = {"status": status, "output": output, "error": error}
+
 ACK_ONLY_KEYS = {'status', 'message', 'ok', 'success', 'started', 'queued', 'accepted',
                  'received', 'error', 'instanceid', 'instance_id', 'jobid', 'job_id',
                  'executionid', 'execution_id', 'taskid', 'task_id', 'requestid', 'request_id'}
@@ -156,6 +176,13 @@ async def run_workflow(
     nodes_map = {n["id"]: n for n in nodes_list}
     order = _topological_sort(nodes_list, edges_list)
 
+    # Инициализируем live-статусы для tool-нод
+    tool_node_ids = [
+        n["id"] for n in nodes_list
+        if (n.get("node_type", "tool" if n.get("tool_id") else "skip")) == "tool"
+    ]
+    _init_statuses(str(workflow.id), str(run.id), tool_node_ids)
+
     # Выходные данные каждого узла
     node_outputs: dict[str, dict] = {}
 
@@ -236,6 +263,9 @@ async def run_workflow(
                     if src_id in node_outputs and src_handle in node_outputs[src_id]:
                         fields[tgt_handle] = node_outputs[src_id][src_handle]
 
+            # Обновляем статус: нода запускается
+            _set_node_status(str(workflow.id), node_id, "running")
+
             # Регистрируем callback до отправки webhook
             callback_url = register_callback(str(run.id), node_id)
 
@@ -265,13 +295,21 @@ async def run_workflow(
                 cb_data = await _wait_for_callback(str(run.id), node_id, timeout=120.0)
                 node_outputs[node_id] = _extract_output(cb_data)
 
+            _set_node_status(str(workflow.id), node_id, "success", output=node_outputs[node_id])
+
         run.status = "success"
         run.result_json = node_outputs
         run.finished_at = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(run)
+        _run_statuses.pop(str(workflow.id), None)
 
     except Exception as e:
+        # Помечаем текущую running-ноду как error
+        wf_st = _run_statuses.get(str(workflow.id), {})
+        for nid, st in wf_st.get("nodes", {}).items():
+            if st.get("status") == "running":
+                _set_node_status(str(workflow.id), nid, "error", error=str(e))
         run.status = "error"
         run.error = str(e)
         run.result_json = node_outputs
