@@ -367,4 +367,78 @@ async def run_workflow(
         _run_statuses.pop(str(workflow.id), None)
         logger.error(f"Воркфлоу {workflow_id} {'отменён' if cancelled else 'ошибка'}: {e}")
 
+
+# ---------------------------------------------------------------------------
+# Планирование крон-нод воркфлоу
+# ---------------------------------------------------------------------------
+
+def schedule_workflow_crons(workflow: "Workflow") -> None:
+    """Регистрируем крон-триггер-ноды воркфлоу в APScheduler."""
+    from .scheduler_service import get_scheduler
+    from apscheduler.triggers.cron import CronTrigger as APCronTrigger
+
+    sched = get_scheduler()
+    _unschedule_workflow_jobs(str(workflow.id), sched)
+
+    if not workflow.is_active or not workflow.graph_json:
+        return
+
+    nodes = workflow.graph_json.get("nodes", [])
+    for node in nodes:
+        if node.get("node_type") != "trigger" or node.get("triggerType") != "cron":
+            continue
+        schedule = (node.get("schedule") or "").strip()
+        if not schedule:
+            continue
+        parts = schedule.split()
+        if len(parts) != 5:
+            logger.warning(f"Workflow {workflow.id}: неверный cron '{schedule}'")
+            continue
+        timezone = node.get("timezone") or "UTC"
+        job_id = f"wfcron_{workflow.id}_{node['id']}"
+        try:
+            cron_trig = APCronTrigger(
+                minute=parts[0], hour=parts[1], day=parts[2],
+                month=parts[3], day_of_week=parts[4],
+                timezone=timezone,
+            )
+            sched.add_job(
+                func=_execute_workflow_cron,
+                trigger=cron_trig,
+                args=[str(workflow.id), str(workflow.agent_id)],
+                id=job_id,
+                replace_existing=True,
+            )
+            logger.info(f"Workflow {workflow.id} cron зарегистрирован: {schedule} ({timezone})")
+        except Exception as e:
+            logger.error(f"Workflow {workflow.id} ошибка регистрации cron: {e}")
+
+
+def unschedule_workflow(workflow_id: str) -> None:
+    """Снимаем все крон-задачи воркфлоу."""
+    from .scheduler_service import get_scheduler
+    _unschedule_workflow_jobs(str(workflow_id), get_scheduler())
+
+
+def _unschedule_workflow_jobs(workflow_id: str, sched) -> None:
+    prefix = f"wfcron_{workflow_id}_"
+    for job in sched.get_jobs():
+        if job.id.startswith(prefix):
+            sched.remove_job(job.id)
+
+
+async def _execute_workflow_cron(workflow_id: str, agent_id: str) -> None:
+    """Запускаем воркфлоу по расписанию."""
+    from ..core.db import AsyncSessionLocal
+    from ..models.agent import UserAgent
+
+    async with AsyncSessionLocal() as db:
+        agent_result = await db.execute(select(UserAgent).where(UserAgent.id == agent_id))
+        agent = agent_result.scalar_one_or_none()
+        if not agent:
+            logger.warning(f"Workflow cron {workflow_id}: агент {agent_id} не найден")
+            return
+        logger.info(f"Workflow cron: запускаем {workflow_id}")
+        await run_workflow(workflow_id, agent.user_id, db, trigger_type="cron")
+
     return run

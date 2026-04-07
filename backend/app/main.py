@@ -5,9 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core.db import AsyncSessionLocal
 from .routers import auth, agents, tools, chat, triggers, admin, webhooks, subscription, run_logs, onboarding, knowledge_base, workflow
 from .services.scheduler_service import start_scheduler, stop_scheduler, get_scheduler, schedule_trigger
+from .services.workflow_service import schedule_workflow_crons
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
 from .models.trigger import AutoTrigger
+from .models.workflow import Workflow
 
 
 @asynccontextmanager
@@ -25,13 +27,19 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
     )
 
-    # Загружаем все активные триггеры из БД при старте
+    # Загружаем все активные триггеры и крон-ноды воркфлоу из БД при старте
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(AutoTrigger).where(AutoTrigger.is_active == True)
         )
         for trigger in result.scalars().all():
             schedule_trigger(trigger)
+
+        wf_result = await db.execute(
+            select(Workflow).where(Workflow.is_active == True)
+        )
+        for wf in wf_result.scalars().all():
+            schedule_workflow_crons(wf)
 
     yield
 

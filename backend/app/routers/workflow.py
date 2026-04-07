@@ -10,7 +10,7 @@ from ..models.workflow import Workflow, WorkflowRun
 from ..models.agent import UserAgent
 from ..models.user import User
 from ..schemas.workflow import WorkflowCreate, WorkflowUpdate, WorkflowResponse, WorkflowRunResponse
-from ..services.workflow_service import run_workflow, receive_callback, get_run_statuses, request_cancel
+from ..services.workflow_service import run_workflow, receive_callback, get_run_statuses, request_cancel, schedule_workflow_crons, unschedule_workflow
 
 router = APIRouter(prefix="/workflows", tags=["Воркфлоу"])
 
@@ -43,6 +43,7 @@ async def create_workflow(
     db.add(wf)
     await db.flush()
     await db.refresh(wf)
+    schedule_workflow_crons(wf)
     return wf
 
 
@@ -73,6 +74,7 @@ async def update_workflow(
         wf.is_active = data.is_active
     await db.flush()
     await db.refresh(wf)
+    schedule_workflow_crons(wf)
     return wf
 
 
@@ -83,6 +85,7 @@ async def delete_workflow(
     db: AsyncSession = Depends(get_db),
 ):
     wf = await _get_workflow_for_user(workflow_id, current_user.id, db)
+    unschedule_workflow(workflow_id)
     await db.delete(wf)
 
 
