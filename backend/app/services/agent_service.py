@@ -351,7 +351,7 @@ async def run_tool_manually(agent_id: str, user_id: str, tool_id: str, db: Async
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(tool.webhook_url, json=payload)
             response.raise_for_status()
             webhook_data = response.json()
@@ -464,7 +464,7 @@ async def run_tool_standalone(user_id: str, tool_id: str, field_values: dict, db
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(tool.webhook_url, json=payload)
             response.raise_for_status()
             webhook_data = response.json()

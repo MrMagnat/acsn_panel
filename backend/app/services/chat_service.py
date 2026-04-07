@@ -744,7 +744,7 @@ async def _call_tool_webhook(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(webhook_url, json=payload)
             response.raise_for_status()
             return response.json()
