@@ -19,6 +19,7 @@ from ..models.agent_tool import AgentTool
 from ..models.tool import Tool
 from ..models.subscription import Subscription
 from ..models.energy_transaction import EnergyTransaction
+from ..models.tool_run_log import ToolRunLog
 
 logger = logging.getLogger(__name__)
 
@@ -201,8 +202,9 @@ async def run_workflow(
             if node_type == "trigger":
                 continue
 
-            # Output-нода: собираем входящие данные → финальный результат
+            # Output-нода: собираем входящие данные → финальный результат + ToolRunLog
             if node_type == "output":
+                import json as _json
                 collected = {}
                 for edge in edges_list:
                     if edge.get("target") == node_id and edge.get("targetHandle") not in ("__entry__", None, ""):
@@ -211,6 +213,21 @@ async def run_workflow(
                         if src_id in node_outputs and src_handle in node_outputs[src_id]:
                             collected[src_handle] = node_outputs[src_id][src_handle]
                 node_outputs[node_id] = collected
+
+                # Создаём запись в истории запусков
+                label = node.get("label") or "Точка выхода"
+                output_log = ToolRunLog(
+                    agent_id=workflow.agent_id,
+                    user_id=user_id,
+                    tool_id="",
+                    tool_name=f"⬛ {label} (воркфлоу: {workflow.name})",
+                    trigger_type="workflow",
+                    status="success",
+                    result_json=_json.dumps(collected, ensure_ascii=False),
+                    finished_at=datetime.now(timezone.utc),
+                )
+                db.add(output_log)
+                await db.flush()
                 continue
 
             tool_id = node.get("tool_id")
