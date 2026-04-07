@@ -1,10 +1,13 @@
 """
 Сервис выполнения воркфлоу.
 Топологическая сортировка → последовательный запуск инструментов → передача данных между шагами.
+Поддерживает синхронные и асинхронные (callback) webhook-инструменты.
 """
+import asyncio
+import hashlib
 import httpx
-import json
 import logging
+import os
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -19,11 +22,63 @@ from ..models.energy_transaction import EnergyTransaction
 
 logger = logging.getLogger(__name__)
 
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000/api")
+
+# In-memory store for async callbacks (single-process)
+_callback_events: dict[str, asyncio.Event] = {}
+_callback_results: dict[str, dict] = {}
+
+ACK_ONLY_KEYS = {'status', 'message', 'ok', 'success', 'started', 'queued', 'accepted', 'received', 'error'}
+
+
+def _callback_token(run_id: str, node_id: str) -> str:
+    return hashlib.sha256(f"{run_id}:{node_id}:wf_secret".encode()).hexdigest()[:20]
+
+
+def _is_ack_only(data: dict) -> bool:
+    """True если ответ — просто подтверждение получения, без полезных данных."""
+    if not isinstance(data, dict) or not data:
+        return True
+    meaningful = {k for k in data if k.lower() not in ACK_ONLY_KEYS}
+    return len(meaningful) == 0
+
+
+def register_callback(run_id: str, node_id: str) -> str:
+    """Регистрируем ожидание callback, возвращаем URL."""
+    key = f"{run_id}:{node_id}"
+    _callback_events[key] = asyncio.Event()
+    token = _callback_token(run_id, node_id)
+    return f"{APP_BASE_URL}/workflows/runs/{run_id}/callback/{node_id}?token={token}"
+
+
+def receive_callback(run_id: str, node_id: str, token: str, data: dict) -> bool:
+    """Принимаем callback от инструмента. Возвращает True если принят."""
+    expected = _callback_token(run_id, node_id)
+    if token != expected:
+        return False
+    key = f"{run_id}:{node_id}"
+    _callback_results[key] = data
+    if key in _callback_events:
+        _callback_events[key].set()
+    return True
+
+
+async def _wait_for_callback(run_id: str, node_id: str, timeout: float = 120.0) -> dict:
+    key = f"{run_id}:{node_id}"
+    event = _callback_events.get(key)
+    if event:
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            raise ValueError(f"Timeout {int(timeout)}s: инструмент не ответил через callback")
+        finally:
+            _callback_events.pop(key, None)
+    return _callback_results.pop(key, {})
+
 
 def _topological_sort(nodes: list[dict], edges: list[dict]) -> list[str]:
-    """Топологическая сортировка узлов по зависимостям (edges)."""
+    """Топологическая сортировка узлов по зависимостям."""
     node_ids = [n["id"] for n in nodes]
-    # Строим граф зависимостей: target зависит от source
     deps: dict[str, set] = {nid: set() for nid in node_ids}
     for edge in edges:
         src = edge.get("source")
@@ -56,16 +111,11 @@ async def run_workflow(
 ) -> WorkflowRun:
     """Запускаем воркфлоу: загружаем граф, сортируем, выполняем по цепочке."""
 
-    # Загружаем воркфлоу
-    wf_result = await db.execute(
-        select(Workflow)
-        .where(Workflow.id == workflow_id)
-    )
+    wf_result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
     workflow = wf_result.scalar_one_or_none()
     if not workflow:
         raise ValueError(f"Воркфлоу {workflow_id} не найден")
 
-    # Создаём запись о запуске
     run = WorkflowRun(
         workflow_id=workflow_id,
         user_id=user_id,
@@ -84,12 +134,13 @@ async def run_workflow(
         run.result_json = {}
         run.finished_at = datetime.now(timezone.utc)
         await db.commit()
+        await db.refresh(run)
         return run
 
     nodes_map = {n["id"]: n for n in nodes_list}
     order = _topological_sort(nodes_list, edges_list)
 
-    # Храним выходные данные каждого узла: node_id → {field_name: value}
+    # Выходные данные каждого узла
     node_outputs: dict[str, dict] = {}
 
     try:
@@ -98,24 +149,39 @@ async def run_workflow(
             if not node:
                 continue
 
+            node_type = node.get("node_type", "tool" if node.get("tool_id") else "trigger")
+
+            # Trigger-ноды пропускаем — они только задают порядок
+            if node_type == "trigger":
+                continue
+
+            # Output-нода: собираем входящие данные → финальный результат
+            if node_type == "output":
+                collected = {}
+                for edge in edges_list:
+                    if edge.get("target") == node_id and edge.get("targetHandle") not in ("__entry__", None, ""):
+                        src_id = edge.get("source")
+                        src_handle = edge.get("sourceHandle", "")
+                        if src_id in node_outputs and src_handle in node_outputs[src_id]:
+                            collected[src_handle] = node_outputs[src_id][src_handle]
+                node_outputs[node_id] = collected
+                continue
+
             tool_id = node.get("tool_id")
             if not tool_id:
                 continue
 
-            # Загружаем agent_tool для этого инструмента
+            # Загружаем agent_tool
             at_result = await db.execute(
                 select(AgentTool)
-                .where(
-                    AgentTool.agent_id == workflow.agent_id,
-                    AgentTool.tool_id == tool_id,
-                )
+                .where(AgentTool.agent_id == workflow.agent_id, AgentTool.tool_id == tool_id)
                 .options(selectinload(AgentTool.tool))
             )
             agent_tool = at_result.scalar_one_or_none()
             if not agent_tool:
                 raise ValueError(f"Инструмент {tool_id} не добавлен агенту")
 
-            # Проверяем энергию (берём стоимость из инструмента)
+            # Энергия
             energy_cost = agent_tool.tool.energy_cost
             sub_result = await db.execute(
                 select(Subscription).where(Subscription.user_id == user_id)
@@ -140,26 +206,29 @@ async def run_workflow(
                 tool_name=agent_tool.tool.name,
             ))
 
-            # Собираем поля: base (из настроек агента) + manual (из узла) + edges (из предыдущих)
+            # Собираем поля: настройки агента + ручные данные ноды + данные из предыдущих нод
             fields: dict = {**(agent_tool.field_values or {})}
             fields.update(node.get("input_data") or {})
 
             for edge in edges_list:
                 if edge.get("target") == node_id:
                     tgt_handle = edge.get("targetHandle", "")
-                    if tgt_handle == "__entry__":
-                        continue  # trigger edge — only defines order, no data
+                    if tgt_handle in ("__entry__", "", None):
+                        continue  # только порядок, без данных
                     src_id = edge.get("source")
                     src_handle = edge.get("sourceHandle", "")
                     if src_id in node_outputs and src_handle in node_outputs[src_id]:
                         fields[tgt_handle] = node_outputs[src_id][src_handle]
 
-            # Вызываем webhook
+            # Регистрируем callback до отправки webhook
+            callback_url = register_callback(str(run.id), node_id)
+
             payload = {
-                "fields": fields,
-                "args": {},
-                "agent_id": workflow.agent_id,
-                "user_id": user_id,
+                **fields,           # плоская структура для совместимости
+                "fields": fields,   # вложенная структура
+                "callback_url": callback_url,
+                "agent_id": str(workflow.agent_id),
+                "user_id": str(user_id),
                 "workflow_run_id": str(run.id),
                 "node_id": node_id,
             }
@@ -167,22 +236,18 @@ async def run_workflow(
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(agent_tool.tool.webhook_url, json=payload)
                 resp.raise_for_status()
-                output = resp.json()
+                direct_output = resp.json() if resp.content else {}
 
-            node_outputs[node_id] = output if isinstance(output, dict) else {"result": output}
-
-        # Обрабатываем output-ноды: отправляем все результаты на webhook_url
-        for node in nodes_list:
-            if node.get("node_type") == "output" and node.get("webhook_url"):
-                try:
-                    async with httpx.AsyncClient(timeout=30.0) as client:
-                        await client.post(node["webhook_url"], json={
-                            "outputs": node_outputs,
-                            "workflow_run_id": str(run.id),
-                            "agent_id": str(workflow.agent_id),
-                        })
-                except Exception as out_err:
-                    logger.warning(f"Output node webhook failed: {out_err}")
+            if direct_output and not _is_ack_only(direct_output):
+                # Синхронный инструмент — используем прямой ответ
+                node_outputs[node_id] = direct_output if isinstance(direct_output, dict) else {"result": direct_output}
+                _callback_events.pop(f"{run.id}:{node_id}", None)
+                _callback_results.pop(f"{run.id}:{node_id}", None)
+            else:
+                # Асинхронный инструмент — ждём callback
+                logger.info(f"Ждём callback от '{agent_tool.tool.name}' (node {node_id})")
+                cb_data = await _wait_for_callback(str(run.id), node_id, timeout=120.0)
+                node_outputs[node_id] = cb_data if isinstance(cb_data, dict) else {"result": cb_data}
 
         run.status = "success"
         run.result_json = node_outputs
@@ -193,7 +258,7 @@ async def run_workflow(
     except Exception as e:
         run.status = "error"
         run.error = str(e)
-        run.result_json = node_outputs  # сохраняем что успело выполниться
+        run.result_json = node_outputs
         run.finished_at = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(run)

@@ -16,8 +16,8 @@
 import { Handle, Position } from '@vue-flow/core'
 defineProps({ id: String, data: Object, selected: Boolean })
 
-const icons = { manual: '▶', chat: '💬', cron: '🕐' }
-const labels = { manual: 'Запуск вручную', chat: 'Из чата', cron: 'По расписанию' }
+const icons = { manual: '▶', cron: '🕐' }
+const labels = { manual: 'Запуск вручную', cron: 'По расписанию' }
 </script>
 
 <style>
@@ -35,8 +35,6 @@ const labels = { manual: 'Запуск вручную', chat: 'Из чата', c
   border-color: #059669;
   box-shadow: 0 0 0 3px rgba(16,185,129,0.2), 0 4px 12px rgba(0,0,0,0.12);
 }
-.trigger-node--chat { border-color: #3b82f6; }
-.trigger-node--chat.trigger-node--selected { box-shadow: 0 0 0 3px rgba(59,130,246,0.2); }
 .trigger-node--cron { border-color: #8b5cf6; }
 .trigger-node--cron.trigger-node--selected { box-shadow: 0 0 0 3px rgba(139,92,246,0.2); }
 .trigger-node__header {
@@ -50,7 +48,6 @@ const labels = { manual: 'Запуск вручную', chat: 'Из чата', c
   align-items: center;
   gap: 6px;
 }
-.trigger-node--chat .trigger-node__header { background: #3b82f6; }
 .trigger-node--cron .trigger-node__header { background: #8b5cf6; }
 .trigger-node__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trigger-node__body {

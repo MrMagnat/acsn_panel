@@ -6,8 +6,7 @@
       <span class="output-node__name">{{ data.label || 'Точка выхода' }}</span>
     </div>
     <div class="output-node__body">
-      <span v-if="data.webhook_url" class="output-node__url">{{ data.webhook_url }}</span>
-      <span v-else class="output-node__hint">Нажми для настройки URL</span>
+      <span class="output-node__hint">Результат → История запусков</span>
     </div>
   </div>
 </template>

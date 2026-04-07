@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from typing import Any
 
 from ..core.db import get_db
 from ..core.deps import get_current_user
@@ -9,7 +10,7 @@ from ..models.workflow import Workflow, WorkflowRun
 from ..models.agent import UserAgent
 from ..models.user import User
 from ..schemas.workflow import WorkflowCreate, WorkflowUpdate, WorkflowResponse, WorkflowRunResponse
-from ..services.workflow_service import run_workflow
+from ..services.workflow_service import run_workflow, receive_callback
 
 router = APIRouter(prefix="/workflows", tags=["Воркфлоу"])
 
@@ -95,6 +96,20 @@ async def run_workflow_endpoint(
     await _get_workflow_for_user(workflow_id, current_user.id, db)
     run = await run_workflow(workflow_id, current_user.id, db, trigger_type="manual")
     return run
+
+
+@router.post("/runs/{run_id}/callback/{node_id}")
+async def node_callback(
+    run_id: str,
+    node_id: str,
+    payload: dict[str, Any],
+    token: str = Query(...),
+):
+    """Callback endpoint для асинхронных инструментов. Без авторизации, защищён токеном."""
+    ok = receive_callback(run_id, node_id, token, payload)
+    if not ok:
+        raise HTTPException(status_code=403, detail="Неверный токен")
+    return {"ok": True}
 
 
 @router.get("/{workflow_id}/runs", response_model=list[WorkflowRunResponse])

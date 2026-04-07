@@ -92,6 +92,11 @@
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-gray-400">{{ wf.graph_json?.nodes?.length ?? 0 }} шагов</span>
                   <button
+                    class="opacity-0 group-hover:opacity-100 text-xs px-2 py-0.5 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-all"
+                    :class="runningWorkflow === wf.id ? 'opacity-100' : ''"
+                    @click.stop="runWorkflowFromAgent(wf.id)"
+                  >{{ runningWorkflow === wf.id ? '⟳' : '▶' }}</button>
+                  <button
                     class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all text-xs"
                     @click.stop="deleteWorkflow(wf.id)"
                   >✕</button>
@@ -245,6 +250,7 @@ const showUpgradeModal = ref(false)
 const runLogs = ref([])
 const selectedLog = ref(null)
 const workflows = ref([])
+const runningWorkflow = ref(null)
 
 const atToolLimit = computed(() => {
   if (!agent.value || !subStore.data) return false
@@ -273,6 +279,23 @@ async function createWorkflow() {
     router.push(`/cabinet/agents/${agent.value.id}/workflow/${res.data.id}`)
   } catch (e) {
     toast.error(e.response?.data?.detail || 'Ошибка создания воркфлоу')
+  }
+}
+
+async function runWorkflowFromAgent(id) {
+  if (runningWorkflow.value) return
+  runningWorkflow.value = id
+  try {
+    const res = await workflowApi.run(id)
+    if (res.data.status === 'success') {
+      toast.success('Воркфлоу выполнен успешно')
+    } else {
+      toast.error(res.data.error || 'Ошибка выполнения воркфлоу')
+    }
+  } catch (e) {
+    toast.error(e.response?.data?.detail || 'Ошибка запуска воркфлоу')
+  } finally {
+    runningWorkflow.value = null
   }
 }
 

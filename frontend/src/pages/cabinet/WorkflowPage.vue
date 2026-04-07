@@ -205,7 +205,6 @@ const nodeTypes = { tool: markRaw(ToolNode), trigger: markRaw(TriggerNode), outp
 
 const TRIGGER_TYPES = [
   { type: 'manual', icon: '▶', label: 'Вручную' },
-  { type: 'chat', icon: '💬', label: 'Из чата' },
   { type: 'cron', icon: '🕐', label: 'По расписанию' },
 ]
 

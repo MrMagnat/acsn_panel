@@ -1,37 +1,72 @@
 <template>
   <div class="h-full flex flex-col">
     <!-- Header -->
-    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
       <div>
         <div class="font-semibold text-sm text-gray-900">
           <span v-if="nodeType === 'trigger'">{{ triggerLabels[nodeData?.triggerType] ?? 'Триггер' }}</span>
           <span v-else-if="nodeType === 'output'">Точка выхода</span>
-          <span v-else>{{ agentTool?.tool?.name }}</span>
+          <span v-else>{{ agentTool?.tool?.name ?? '—' }}</span>
         </div>
         <div class="text-xs text-gray-400 mt-0.5">
           <span v-if="nodeType === 'trigger'">Начало цепочки</span>
           <span v-else-if="nodeType === 'output'">Конец цепочки</span>
-          <span v-else>⚡ {{ agentTool?.tool?.energy_cost }} за запуск</span>
+          <span v-else>⚡ {{ agentTool?.tool?.energy_cost ?? 0 }} за запуск</span>
         </div>
       </div>
       <button class="text-gray-400 hover:text-gray-600 text-lg" @click="$emit('close')">✕</button>
     </div>
 
     <!-- Trigger config -->
-    <div v-if="nodeType === 'trigger'" class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+    <div v-if="nodeType === 'trigger'" class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block">Тип триггера</label>
-        <select v-model="triggerLocal.triggerType" class="input text-sm" @change="emitSpecial">
-          <option value="manual">▶ Вручную</option>
-          <option value="chat">💬 Из чата</option>
-          <option value="cron">🕐 По расписанию</option>
-        </select>
+        <div class="flex gap-2">
+          <button
+            v-for="t in [{ v: 'manual', l: '▶ Вручную' }, { v: 'cron', l: '🕐 По расписанию' }]"
+            :key="t.v"
+            class="flex-1 py-1.5 text-xs rounded-lg border transition-colors"
+            :class="triggerLocal.triggerType === t.v ? 'bg-emerald-500 text-white border-emerald-500' : 'border-gray-200 text-gray-600 hover:border-emerald-300'"
+            @click="triggerLocal.triggerType = t.v; emitSpecial()"
+          >{{ t.l }}</button>
+        </div>
       </div>
-      <div v-if="triggerLocal.triggerType === 'cron'">
-        <label class="text-xs font-medium text-gray-600 mb-1 block">Расписание (CRON)</label>
-        <input v-model="triggerLocal.schedule" class="input text-sm font-mono" placeholder="0 9 * * 1-5" @input="emitSpecial" />
-        <p class="text-xs text-gray-400 mt-0.5">Например: <code>0 9 * * 1-5</code> — каждый будний день в 9:00</p>
+
+      <div v-if="triggerLocal.triggerType === 'cron'" class="space-y-3">
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-2 block">Частота запуска</label>
+          <div class="grid grid-cols-2 gap-1.5 mb-3">
+            <button
+              v-for="opt in SCHEDULE_PRESETS"
+              :key="opt.cron"
+              class="py-1.5 px-2 text-xs rounded-lg border transition-colors text-left"
+              :class="triggerLocal.schedule === opt.cron ? 'bg-purple-100 border-purple-400 text-purple-700 font-medium' : 'border-gray-200 text-gray-600 hover:border-purple-300'"
+              @click="triggerLocal.schedule = opt.cron; triggerLocal.scheduleMode = 'preset'; emitSpecial()"
+            >{{ opt.label }}</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">— или в точное время</label>
+          <div class="flex gap-2 items-center">
+            <input
+              type="time"
+              v-model="exactTime"
+              class="input text-sm flex-1"
+              @change="applyExactTime"
+            />
+            <select v-model="triggerLocal.timezone" class="input text-xs flex-1" @change="applyExactTime">
+              <option v-for="tz in TIMEZONES" :key="tz.v" :value="tz.v">{{ tz.l }}</option>
+            </select>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">Каждый день в указанное время</p>
+        </div>
+
+        <div v-if="triggerLocal.schedule" class="text-xs bg-purple-50 rounded-lg px-3 py-2 text-purple-700">
+          CRON: <code>{{ triggerLocal.schedule }}</code>
+        </div>
       </div>
+
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block">Метка (необязательно)</label>
         <input v-model="triggerLocal.label" class="input text-sm" placeholder="Мой триггер" @input="emitSpecial" />
@@ -40,14 +75,15 @@
 
     <!-- Output config -->
     <div v-else-if="nodeType === 'output'" class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-      <div>
-        <label class="text-xs font-medium text-gray-600 mb-1 block">Webhook URL для отправки результата</label>
-        <input v-model="outputLocal.webhook_url" class="input text-sm font-mono" placeholder="https://..." @input="emitSpecial" />
-        <p class="text-xs text-gray-400 mt-1">После выполнения цепочки все данные будут отправлены POST-запросом на этот URL</p>
+      <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+        <div class="text-sm font-medium text-indigo-800 mb-1">🏁 Финальная точка</div>
+        <p class="text-xs text-indigo-600">
+          Все данные, которые придут в эту точку, будут сохранены как результат запуска и отображены в истории.
+        </p>
       </div>
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block">Метка (необязательно)</label>
-        <input v-model="outputLocal.label" class="input text-sm" placeholder="Выход" @input="emitSpecial" />
+        <input v-model="outputLocal.label" class="input text-sm" placeholder="Результат" @input="emitSpecial" />
       </div>
     </div>
 
@@ -60,64 +96,83 @@
       <div v-for="field in inputFields" :key="field.field_name">
         <label class="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
           {{ field.field_name }}
-          <span v-if="field.required" class="text-red-500">*</span>
+          <span v-if="field.required" class="text-red-400">*</span>
+          <span v-if="field.hint" class="text-gray-400 font-normal">— {{ field.hint }}</span>
         </label>
 
         <!-- Connected from another node -->
         <div v-if="isConnected(field.field_name)" class="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg border border-purple-200 text-xs text-purple-700">
           <span>🔗</span>
-          <span>Подключено: <strong>{{ getConnectionSource(field.field_name) }}</strong></span>
+          <span>{{ getConnectionSource(field.field_name) }}</span>
         </div>
 
-        <!-- Manual input -->
         <template v-else>
-          <select v-if="field.field_type === 'select'" v-model="localData[field.field_name]" class="input text-sm" @change="emitUpdate">
+          <!-- ai_token: show read-only info -->
+          <div v-if="field.field_type === 'ai_token'" class="px-3 py-2 bg-orange-50 rounded-lg border border-orange-100 text-xs text-orange-700">
+            🤖 ИИ-оператор — берётся из настроек агента
+          </div>
+
+          <!-- base: knowledge base -->
+          <div v-else-if="field.field_type === 'base'" class="px-3 py-2 bg-green-50 rounded-lg border border-green-100 text-xs text-green-700">
+            📚 База знаний — выбирается из настроек агента
+          </div>
+
+          <!-- select -->
+          <select
+            v-else-if="field.field_type === 'select'"
+            v-model="localData[field.field_name]"
+            class="input text-sm"
+            @change="emitUpdate"
+          >
             <option value="">— выберите —</option>
             <option v-for="opt in parseOptions(field.options)" :key="opt" :value="opt">{{ opt }}</option>
           </select>
-          <textarea
-            v-else-if="field.field_type === 'textarea' || field.field_type === 'json' || field.field_type === 'array'"
-            v-model="localData[field.field_name]"
-            class="input resize-none text-sm font-mono"
-            rows="3"
-            :placeholder="field.hint || ''"
-            @input="emitUpdate"
-          />
+
+          <!-- json / array -->
+          <div v-else-if="field.field_type === 'json' || field.field_type === 'array'">
+            <textarea
+              v-model="localData[field.field_name]"
+              class="input resize-none text-sm font-mono"
+              rows="3"
+              :placeholder="field.field_type === 'array' ? 'Элемент 1\nЭлемент 2\n...' : '{\"key\": \"value\"}'"
+              @input="emitUpdate"
+            />
+            <p class="text-xs text-gray-400 mt-0.5">
+              {{ field.field_type === 'array' ? 'По одному элементу на строку' : 'Формат JSON' }}
+            </p>
+          </div>
+
+          <!-- everything else -->
           <input
-            v-else-if="field.field_type !== 'ai_token'"
+            v-else
             v-model="localData[field.field_name]"
             class="input text-sm"
+            :type="field.field_type === 'number' ? 'number' : 'text'"
             :placeholder="field.hint || ''"
             @input="emitUpdate"
           />
-          <p v-if="field.hint && field.field_type === 'text'" class="text-xs text-gray-400 mt-0.5">{{ field.hint }}</p>
         </template>
       </div>
 
-      <!-- Output fields info -->
+      <!-- Output fields -->
       <div v-if="outputFields.length" class="pt-3 border-t border-gray-100">
-        <div class="text-xs font-medium text-gray-500 mb-2">Выходные данные:</div>
+        <div class="text-xs font-medium text-gray-500 mb-2">Передаёт дальше:</div>
         <div class="flex flex-wrap gap-1.5">
           <span
             v-for="out in outputFields"
             :key="out.name"
             class="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full border border-green-200"
-          >
-            → {{ out.name }}
-          </span>
+          >→ {{ out.name }}</span>
         </div>
-        <p class="text-xs text-gray-400 mt-1">Эти значения можно передать следующим блокам</p>
       </div>
     </div>
 
-    <!-- Delete button -->
+    <!-- Delete -->
     <div class="px-4 py-2.5 border-t border-gray-100 shrink-0">
       <button
         class="w-full text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg py-1.5 transition-colors"
         @click="$emit('delete')"
-      >
-        Удалить блок
-      </button>
+      >Удалить блок</button>
     </div>
   </div>
 </template>
@@ -137,21 +192,67 @@ const emits = defineEmits(['update', 'close', 'delete'])
 
 const { getEdges, findNode } = useVueFlow()
 
-// Tool node state
-const localData = ref({ ...(props.inputData || {}) })
-watch(() => props.inputData, (val) => { localData.value = { ...(val || {}) } }, { deep: true })
+const SCHEDULE_PRESETS = [
+  { label: 'Каждые 15 мин', cron: '*/15 * * * *' },
+  { label: 'Каждые 30 мин', cron: '*/30 * * * *' },
+  { label: 'Каждый час', cron: '0 * * * *' },
+  { label: 'Каждые 2 часа', cron: '0 */2 * * *' },
+  { label: 'Каждые 3 часа', cron: '0 */3 * * *' },
+  { label: 'Каждые 6 часов', cron: '0 */6 * * *' },
+]
 
-// Trigger node state
-const triggerLocal = ref({ triggerType: 'manual', schedule: '', timezone: 'UTC', label: '', ...(props.nodeData || {}) })
-watch(() => props.nodeData, (val) => {
-  if (props.nodeType === 'trigger') triggerLocal.value = { triggerType: 'manual', schedule: '', timezone: 'UTC', label: '', ...(val || {}) }
-  if (props.nodeType === 'output') outputLocal.value = { webhook_url: '', label: '', ...(val || {}) }
+const TIMEZONES = [
+  { v: 'Europe/Moscow', l: 'Москва (UTC+3)' },
+  { v: 'Europe/Kiev', l: 'Киев (UTC+2/3)' },
+  { v: 'Asia/Almaty', l: 'Алматы (UTC+5)' },
+  { v: 'UTC', l: 'UTC' },
+  { v: 'Europe/London', l: 'Лондон' },
+]
+
+const triggerLabels = { manual: 'Запуск вручную', cron: 'По расписанию' }
+
+// Tool state — re-init when nodeId or inputData changes
+const localData = ref({})
+
+function rebuildLocalData() {
+  const base = {}
+  for (const f of (props.agentTool?.tool?.fields ?? [])) {
+    base[f.field_name] = ''
+  }
+  localData.value = { ...base, ...(props.inputData || {}) }
+}
+
+watch(() => props.nodeId, rebuildLocalData, { immediate: true })
+watch(() => props.agentTool, rebuildLocalData, { deep: true })
+watch(() => props.inputData, (val) => {
+  localData.value = { ...localData.value, ...(val || {}) }
 }, { deep: true })
 
-// Output node state
-const outputLocal = ref({ webhook_url: '', label: '', ...(props.nodeData || {}) })
+// Trigger state
+const triggerLocal = ref({ triggerType: 'manual', schedule: '', timezone: 'Europe/Moscow', label: '', scheduleMode: 'preset' })
+watch(() => [props.nodeId, props.nodeData], () => {
+  if (props.nodeType === 'trigger') {
+    triggerLocal.value = { triggerType: 'manual', schedule: '', timezone: 'Europe/Moscow', label: '', ...props.nodeData }
+    // Parse exact time from cron if needed
+    const match = (props.nodeData?.schedule || '').match(/^(\d+) (\d+) \* \* \*$/)
+    if (match) exactTime.value = `${String(match[2]).padStart(2,'0')}:${String(match[1]).padStart(2,'0')}`
+  }
+}, { immediate: true, deep: true })
 
-const triggerLabels = { manual: 'Запуск вручную', chat: 'Из чата', cron: 'По расписанию' }
+// Output state
+const outputLocal = ref({ label: '' })
+watch(() => [props.nodeId, props.nodeData], () => {
+  if (props.nodeType === 'output') outputLocal.value = { label: '', ...props.nodeData }
+}, { immediate: true, deep: true })
+
+// Exact time for cron
+const exactTime = ref('')
+function applyExactTime() {
+  if (!exactTime.value) return
+  const [hh, mm] = exactTime.value.split(':')
+  triggerLocal.value.schedule = `${parseInt(mm)} ${parseInt(hh)} * * *`
+  emitSpecial()
+}
 
 const inputFields = computed(() => props.agentTool?.tool?.fields ?? [])
 const outputFields = computed(() => props.agentTool?.tool?.output_fields ?? [])
@@ -164,13 +265,13 @@ function getConnectionSource(fieldName) {
   const edge = getEdges.value.find((e) => e.target === props.nodeId && e.targetHandle === fieldName)
   if (!edge) return ''
   const srcNode = findNode(edge.source)
-  return `${srcNode?.data?.toolName ?? edge.source} → ${edge.sourceHandle}`
+  return `🔗 ${srcNode?.data?.toolName ?? edge.source} → ${edge.sourceHandle}`
 }
 
 function parseOptions(opts) {
   if (!opts) return []
   if (Array.isArray(opts)) return opts
-  return String(opts).split('\n').map((s) => s.trim()).filter(Boolean)
+  try { return JSON.parse(opts) } catch { return String(opts).split('\n').map(s => s.trim()).filter(Boolean) }
 }
 
 function emitUpdate() {
