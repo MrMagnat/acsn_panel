@@ -134,7 +134,7 @@
               v-model="localData[field.field_name]"
               class="input resize-none text-sm font-mono"
               rows="3"
-              :placeholder="field.field_type === 'array' ? 'Элемент 1\nЭлемент 2\n...' : '{\"key\": \"value\"}'"
+              :placeholder="field.field_type === 'array' ? arrayPlaceholder : jsonPlaceholder"
               @input="emitUpdate"
             />
             <p class="text-xs text-gray-400 mt-0.5">
@@ -253,6 +253,9 @@ function applyExactTime() {
   triggerLocal.value.schedule = `${parseInt(mm)} ${parseInt(hh)} * * *`
   emitSpecial()
 }
+
+const arrayPlaceholder = "Элемент 1\nЭлемент 2\n..."
+const jsonPlaceholder = '{"key": "value"}'
 
 const inputFields = computed(() => props.agentTool?.tool?.fields ?? [])
 const outputFields = computed(() => props.agentTool?.tool?.output_fields ?? [])
