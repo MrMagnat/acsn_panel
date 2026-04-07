@@ -86,6 +86,16 @@ async def create_kb(data: KBCreate, db: AsyncSession = Depends(get_db), user: Us
     return {"id": kb.id, "name": kb.name, "fields_count": 0}
 
 
+@router.get("/{kb_id}/webhook-token")
+async def get_kb_webhook_token(kb_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    """Получить токен для внешнего вебхука базы знаний."""
+    import hashlib
+    from ..core.config import settings
+    await _get_kb(kb_id, user, db)  # проверка доступа
+    token = hashlib.sha256(f"kb:{kb_id}:{settings.SECRET_KEY}".encode()).hexdigest()[:32]
+    return {"kb_id": kb_id, "token": token}
+
+
 @router.get("/{kb_id}")
 async def get_kb(kb_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     kb = await _get_kb(kb_id, user, db)

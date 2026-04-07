@@ -245,6 +245,61 @@ async def run_workflow(
                 await db.flush()
                 continue
 
+            # KB-ноды — прямая работа с базой знаний без вебхука
+            if node_type in ("kb_read", "kb_write"):
+                import json as _json
+                from ..models.knowledge_base import KnowledgeBase, KBRecord
+                _set_node_status(str(workflow.id), node_id, "running")
+
+                kb_id = node.get("kb_id")
+                if not kb_id:
+                    raise ValueError(f"KB нода {node_id}: не указана база знаний")
+
+                if node_type == "kb_read":
+                    limit = int(node.get("limit") or 100)
+                    recs_result = await db.execute(
+                        select(KBRecord).where(KBRecord.kb_id == kb_id)
+                        .order_by(KBRecord.created_at.desc()).limit(limit)
+                    )
+                    records = []
+                    for rec in recs_result.scalars():
+                        try:
+                            records.append(_json.loads(rec.data))
+                        except Exception:
+                            records.append({})
+                    output = {"records": _json.dumps(records, ensure_ascii=False), "count": len(records)}
+                    node_outputs[node_id] = output
+                    _set_node_status(str(workflow.id), node_id, "success", output=output)
+
+                else:  # kb_write
+                    row_data = {}
+                    for edge in edges_list:
+                        if edge.get("target") == node_id:
+                            tgt_handle = edge.get("targetHandle", "")
+                            if tgt_handle in ("__entry__", "", None):
+                                continue
+                            src_id = edge.get("source")
+                            src_handle = edge.get("sourceHandle", "")
+                            src_data = node_outputs.get(src_id, {})
+                            if not src_data:
+                                continue
+                            if src_handle in src_data:
+                                row_data[tgt_handle] = src_data[src_handle]
+                            elif len(src_data) == 1:
+                                row_data[tgt_handle] = list(src_data.values())[0]
+                    row_data.update(node.get("input_data") or {})
+
+                    new_record = KBRecord(
+                        kb_id=kb_id,
+                        data=_json.dumps(row_data, ensure_ascii=False)
+                    )
+                    db.add(new_record)
+                    await db.flush()
+                    output = {"status": "success", "row_id": str(new_record.id)}
+                    node_outputs[node_id] = output
+                    _set_node_status(str(workflow.id), node_id, "success", output=output)
+                continue
+
             tool_id = node.get("tool_id")
             if not tool_id:
                 continue

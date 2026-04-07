@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+import hashlib
+import json
+from typing import Any
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -6,7 +9,12 @@ from ..core.db import get_db
 from ..core.config import settings
 from ..models.subscription import Subscription
 from ..models.user import User
+from ..models.knowledge_base import KnowledgeBase, KBRecord
 from ..schemas.subscription import SubscriptionWebhookUpdate
+
+
+def _kb_token(kb_id: str) -> str:
+    return hashlib.sha256(f"kb:{kb_id}:{settings.SECRET_KEY}".encode()).hexdigest()[:32]
 
 router = APIRouter(prefix="/webhooks", tags=["Вебхуки"])
 
@@ -49,3 +57,37 @@ async def subscription_update(
         db.add(subscription)
 
     return {"status": "ok", "message": "Подписка обновлена"}
+
+
+@router.post("/kb/{kb_id}", status_code=200)
+async def kb_add_row(
+    kb_id: str,
+    payload: dict[str, Any],
+    token: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Добавить строку в базу знаний через вебхук (из внешних автоматизаций)."""
+    if token != _kb_token(kb_id):
+        raise HTTPException(status_code=403, detail="Неверный токен")
+
+    result = await db.execute(select(KnowledgeBase).where(KnowledgeBase.id == kb_id))
+    kb = result.scalar_one_or_none()
+    if not kb:
+        raise HTTPException(status_code=404, detail="База не найдена")
+
+    record = KBRecord(kb_id=kb_id, data=json.dumps(payload, ensure_ascii=False))
+    db.add(record)
+    await db.flush()
+    await db.refresh(record)
+    return {"ok": True, "record_id": record.id}
+
+
+@router.get("/kb/{kb_id}/info", status_code=200)
+async def kb_webhook_info(
+    kb_id: str,
+    token: str = Query(...),
+):
+    """Получить webhook URL для базы знаний."""
+    if token != _kb_token(kb_id):
+        raise HTTPException(status_code=403, detail="Неверный токен")
+    return {"kb_id": kb_id, "token": _kb_token(kb_id)}

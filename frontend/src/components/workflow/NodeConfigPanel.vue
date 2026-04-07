@@ -6,11 +6,14 @@
         <div class="font-semibold text-sm text-gray-900">
           <span v-if="nodeType === 'trigger'">{{ triggerLabels[nodeData?.triggerType] ?? 'Триггер' }}</span>
           <span v-else-if="nodeType === 'output'">Точка выхода</span>
+          <span v-else-if="nodeType === 'kb_read'">📥 Получить из базы</span>
+          <span v-else-if="nodeType === 'kb_write'">📤 Записать в базу</span>
           <span v-else>{{ agentTool?.tool?.name ?? '—' }}</span>
         </div>
         <div class="text-xs text-gray-400 mt-0.5">
           <span v-if="nodeType === 'trigger'">Начало цепочки</span>
           <span v-else-if="nodeType === 'output'">Конец цепочки</span>
+          <span v-else-if="nodeType === 'kb_read' || nodeType === 'kb_write'">База знаний</span>
           <span v-else>⚡ {{ agentTool?.tool?.energy_cost ?? 0 }} за запуск</span>
         </div>
       </div>
@@ -84,6 +87,39 @@
       <div>
         <label class="text-xs font-medium text-gray-600 mb-1 block">Метка (необязательно)</label>
         <input v-model="outputLocal.label" class="input text-sm" placeholder="Результат" @input="emitSpecial" />
+      </div>
+    </div>
+
+    <!-- KB Read config -->
+    <div v-else-if="nodeType === 'kb_read'" class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div>
+        <label class="text-xs font-medium text-gray-600 mb-1 block">База знаний</label>
+        <select class="input text-sm" :value="kbLocal.kb_id" @change="kbLocal.kb_id = $event.target.value; kbLocal.kb_name = kbNameById($event.target.value); emitKb()">
+          <option value="">— выберите —</option>
+          <option v-for="kb in userKbs" :key="kb.id" :value="kb.id">{{ kb.name }}</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-600 mb-1 block">Лимит строк</label>
+        <input type="number" class="input text-sm" :value="kbLocal.limit || 100" min="1" max="1000"
+          @input="kbLocal.limit = $event.target.value; emitKb()" placeholder="100" />
+      </div>
+      <div class="p-3 bg-blue-50 rounded-xl border border-blue-100 text-xs text-blue-700">
+        Передаёт дальше: <strong>records</strong> (JSON массив) и <strong>count</strong> (кол-во строк)
+      </div>
+    </div>
+
+    <!-- KB Write config -->
+    <div v-else-if="nodeType === 'kb_write'" class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div>
+        <label class="text-xs font-medium text-gray-600 mb-1 block">База знаний</label>
+        <select class="input text-sm" :value="kbLocal.kb_id" @change="kbLocal.kb_id = $event.target.value; kbLocal.kb_name = kbNameById($event.target.value); emitKb()">
+          <option value="">— выберите —</option>
+          <option v-for="kb in userKbs" :key="kb.id" :value="kb.id">{{ kb.name }}</option>
+        </select>
+      </div>
+      <div class="p-3 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-700">
+        Данные передаются через соединение из предыдущей ноды. Подключите выход инструмента к входу этой ноды.
       </div>
     </div>
 
@@ -190,6 +226,7 @@ const props = defineProps({
   nodeData: { type: Object, default: () => ({}) },
   agentTool: { type: Object, default: null },
   inputData: { type: Object, default: () => ({}) },
+  userKbs: { type: Array, default: () => [] },
 })
 const emits = defineEmits(['update', 'close', 'delete'])
 
@@ -247,6 +284,22 @@ const outputLocal = ref({ label: '' })
 watch(() => [props.nodeId, props.nodeData], () => {
   if (props.nodeType === 'output') outputLocal.value = { label: '', ...props.nodeData }
 }, { immediate: true, deep: true })
+
+// KB state
+const kbLocal = ref({ kb_id: '', kb_name: '', limit: 100 })
+watch(() => [props.nodeId, props.nodeData], () => {
+  if (props.nodeType === 'kb_read' || props.nodeType === 'kb_write') {
+    kbLocal.value = { kb_id: '', kb_name: '', limit: 100, ...props.nodeData }
+  }
+}, { immediate: true, deep: true })
+
+function kbNameById(id) {
+  return props.userKbs.find(k => k.id === id)?.name || ''
+}
+
+function emitKb() {
+  emits('update', { ...kbLocal.value })
+}
 
 // Exact time for cron
 const exactTime = ref('')

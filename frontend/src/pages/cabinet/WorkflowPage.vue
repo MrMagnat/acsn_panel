@@ -88,6 +88,23 @@
           </div>
         </div>
 
+        <!-- Базы знаний -->
+        <div class="px-4 pb-2 border-t border-gray-100 pt-3">
+          <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Базы знаний</div>
+        </div>
+        <div class="px-3 space-y-2 pb-3">
+          <div
+            v-for="op in [{ type: 'kb_read', icon: '📥', label: 'Получить из базы' }, { type: 'kb_write', icon: '📤', label: 'Записать в базу' }]"
+            :key="op.type"
+            class="p-2.5 rounded-xl border border-blue-200 bg-blue-50 cursor-grab hover:border-blue-400 hover:bg-blue-100 transition-colors select-none flex items-center gap-2"
+            draggable="true"
+            @dragstart="onDragStartSpecial($event, { nodeType: op.type })"
+          >
+            <span class="text-base">{{ op.icon }}</span>
+            <div class="text-xs font-medium text-blue-800">{{ op.label }}</div>
+          </div>
+        </div>
+
         <!-- Инструменты -->
         <div class="px-4 pb-2 border-t border-gray-100 pt-3">
           <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Инструменты агента</div>
@@ -150,6 +167,7 @@
             :node-data="selectedNode?.data"
             :agent-tool="selectedAgentTool"
             :input-data="selectedNode?.data?.input_data ?? {}"
+            :user-kbs="userKbs"
             @update="onNodeDataUpdate"
             @close="selectedNodeId = null"
             @delete="deleteSelectedNode"
@@ -199,9 +217,11 @@ import '@vue-flow/minimap/dist/style.css'
 import ToolNode from '@/components/workflow/ToolNode.vue'
 import TriggerNode from '@/components/workflow/TriggerNode.vue'
 import OutputNode from '@/components/workflow/OutputNode.vue'
+import KbNode from '@/components/workflow/KbNode.vue'
 import NodeConfigPanel from '@/components/workflow/NodeConfigPanel.vue'
 import { workflowApi } from '@/api/workflow'
 import { agentsApi } from '@/api/agents'
+import { kbApi } from '@/api/knowledge-base'
 import { useToastStore } from '@/stores/toast'
 
 const route = useRoute()
@@ -211,7 +231,7 @@ const toast = useToastStore()
 const workflowId = route.params.workflowId
 const agentId = route.params.agentId
 
-const nodeTypes = { tool: markRaw(ToolNode), trigger: markRaw(TriggerNode), output: markRaw(OutputNode) }
+const nodeTypes = { tool: markRaw(ToolNode), trigger: markRaw(TriggerNode), output: markRaw(OutputNode), kb_read: markRaw(KbNode), kb_write: markRaw(KbNode) }
 
 const TRIGGER_TYPES = [
   { type: 'manual', icon: '▶', label: 'Вручную' },
@@ -224,6 +244,7 @@ const nodes = ref([])
 const edges = ref([])
 const workflowName = ref('Новый воркфлоу')
 const agentTools = ref([])
+const userKbs = ref([])
 const saving = ref(false)
 const running = ref(false)
 const stopping = ref(false)
@@ -246,6 +267,12 @@ onMounted(async () => {
   } catch {
     toast.error('Ошибка загрузки инструментов агента')
   }
+
+  // Загружаем базы знаний
+  try {
+    const kbRes = await kbApi.list()
+    userKbs.value = kbRes.data ?? []
+  } catch {}
 
   // Загружаем воркфлоу
   try {
@@ -272,6 +299,9 @@ function loadGraph(graph) {
     }
     if (nodeType === 'output') {
       return { id: n.id, type: 'output', position: n.position, data: { webhook_url: n.webhook_url ?? '', label: n.label ?? '' } }
+    }
+    if (nodeType === 'kb_read' || nodeType === 'kb_write') {
+      return { id: n.id, type: nodeType, position: n.position, data: { operation: n.operation ?? (nodeType === 'kb_read' ? 'read' : 'write'), kb_id: n.kb_id ?? '', kb_name: n.kb_name ?? '', limit: n.limit ?? 100 } }
     }
     return { id: n.id, type: 'tool', position: n.position, data: buildNodeData(n) }
   })
@@ -320,6 +350,10 @@ function onDrop(event) {
       newNode = { id: nodeId, type: 'trigger', position, data: { triggerType: draggedSpecial.triggerType, schedule: '', timezone: 'UTC', label: '' } }
     } else if (draggedSpecial.nodeType === 'output') {
       newNode = { id: nodeId, type: 'output', position, data: { webhook_url: '', label: '' } }
+    } else if (draggedSpecial.nodeType === 'kb_read') {
+      newNode = { id: nodeId, type: 'kb_read', position, data: { operation: 'read', kb_id: '', kb_name: '', limit: 100 } }
+    } else if (draggedSpecial.nodeType === 'kb_write') {
+      newNode = { id: nodeId, type: 'kb_write', position, data: { operation: 'write', kb_id: '', kb_name: '' } }
     }
     if (newNode) {
       nodes.value = [...nodes.value, newNode]
@@ -376,6 +410,7 @@ function onNodeDataUpdate(newData) {
     if (n.id !== selectedNodeId.value) return n
     // tool nodes: newData is input_data; trigger/output nodes: newData is full data merge
     if (n.type === 'tool') return { ...n, data: { ...n.data, input_data: newData } }
+    if (n.type === 'kb_read' || n.type === 'kb_write') return { ...n, data: { ...n.data, ...newData } }
     return { ...n, data: { ...n.data, ...newData } }
   })
 }
@@ -387,6 +422,7 @@ async function saveGraph() {
       const base = { id: n.id, node_type: n.type, position: n.position }
       if (n.type === 'trigger') return { ...base, triggerType: n.data.triggerType, schedule: n.data.schedule, timezone: n.data.timezone, label: n.data.label }
       if (n.type === 'output') return { ...base, webhook_url: n.data.webhook_url, label: n.data.label }
+      if (n.type === 'kb_read' || n.type === 'kb_write') return { ...base, operation: n.data.operation, kb_id: n.data.kb_id, kb_name: n.data.kb_name, limit: n.data.limit }
       return { ...base, tool_id: n.data.tool_id, input_data: n.data.input_data ?? {} }
     }),
     edges: edges.value.map((e) => ({
