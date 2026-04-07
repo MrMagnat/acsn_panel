@@ -11,6 +11,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    allowedHosts: ['agents.ascn.ai', 'nocode.ascn.ai', 'businesspanel.ru', 'localhost'],
     proxy: {
       '/api': {
         target: 'http://backend:8000',
