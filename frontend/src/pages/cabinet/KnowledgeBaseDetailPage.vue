@@ -118,12 +118,11 @@
 
         <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3 text-sm text-gray-700">
           <p>
-            Этот URL позволяет <strong>добавлять строки в базу знаний из любых внешних сервисов</strong> —
-            n8n, Make, Zapier, своих скриптов и т.д.
+            Отправьте <strong>POST-запрос</strong> на этот URL — и строка появится в базе знаний.
           </p>
           <p>
-            <strong>Токен</strong> — это уникальный секретный ключ для этой базы. Он вшит в ссылку и защищает от
-            несанкционированного доступа. Никому не передавайте ссылку целиком.
+            <strong>Токен</strong> — уникальный секретный ключ этой базы, вшитый в ссылку.
+            Он защищает от несанкционированного доступа — никому не передавайте ссылку целиком.
           </p>
         </div>
 
@@ -240,7 +239,19 @@ async function openWebhook() {
 }
 
 async function copyUrl() {
-  await navigator.clipboard.writeText(webhookUrl.value)
+  try {
+    await navigator.clipboard.writeText(webhookUrl.value)
+  } catch {
+    // fallback для http
+    const el = document.createElement('textarea')
+    el.value = webhookUrl.value
+    el.style.position = 'fixed'
+    el.style.opacity = '0'
+    document.body.appendChild(el)
+    el.select()
+    document.execCommand('copy')
+    document.body.removeChild(el)
+  }
   copied.value = true
   setTimeout(() => { copied.value = false }, 2000)
 }
