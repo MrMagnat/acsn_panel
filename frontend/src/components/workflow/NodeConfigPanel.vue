@@ -107,10 +107,12 @@
         </div>
 
         <template v-else>
-          <!-- ai_token: show read-only info -->
-          <div v-if="field.field_type === 'ai_token'" class="px-3 py-2 bg-orange-50 rounded-lg border border-orange-100 text-xs text-orange-700">
-            🤖 ИИ-оператор — берётся из настроек агента
-          </div>
+          <!-- ai_token: provider/model/token selector -->
+          <AiTokenField
+            v-if="field.field_type === 'ai_token'"
+            :model-value="localData[field.field_name]"
+            @update:model-value="localData[field.field_name] = $event; emitUpdate()"
+          />
 
           <!-- base: knowledge base -->
           <div v-else-if="field.field_type === 'base'" class="px-3 py-2 bg-green-50 rounded-lg border border-green-100 text-xs text-green-700">
@@ -180,6 +182,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { useVueFlow } from '@vue-flow/core'
+import AiTokenField from '@/components/tools/AiTokenField.vue'
 
 const props = defineProps({
   nodeId: { type: String, required: true },
