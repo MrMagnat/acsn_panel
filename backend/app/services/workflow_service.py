@@ -280,8 +280,19 @@ async def run_workflow(
                         continue  # только порядок, без данных
                     src_id = edge.get("source")
                     src_handle = edge.get("sourceHandle", "")
-                    if src_id in node_outputs and src_handle in node_outputs[src_id]:
-                        fields[tgt_handle] = node_outputs[src_id][src_handle]
+                    src_data = node_outputs.get(src_id, {})
+                    if not src_data:
+                        continue
+                    if src_handle in src_data:
+                        # Точное совпадение имён
+                        fields[tgt_handle] = src_data[src_handle]
+                    elif len(src_data) == 1:
+                        # Один выход — передаём его значение независимо от имени
+                        fields[tgt_handle] = list(src_data.values())[0]
+                    else:
+                        # Несколько выходов, имя не совпало — передаём все данные как JSON
+                        import json as _j
+                        fields[tgt_handle] = _j.dumps(src_data, ensure_ascii=False)
 
             # Обновляем статус: нода запускается
             _set_node_status(str(workflow.id), node_id, "running")
