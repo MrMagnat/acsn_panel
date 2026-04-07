@@ -10,7 +10,7 @@ from ..models.workflow import Workflow, WorkflowRun
 from ..models.agent import UserAgent
 from ..models.user import User
 from ..schemas.workflow import WorkflowCreate, WorkflowUpdate, WorkflowResponse, WorkflowRunResponse
-from ..services.workflow_service import run_workflow, receive_callback, get_run_statuses
+from ..services.workflow_service import run_workflow, receive_callback, get_run_statuses, request_cancel
 
 router = APIRouter(prefix="/workflows", tags=["Воркфлоу"])
 
@@ -105,6 +105,18 @@ def _public_base_url(request: Request) -> str:
     proto = request.headers.get("x-forwarded-proto", "http")
     host = request.headers.get("x-forwarded-host") or request.headers.get("host", "localhost:8000")
     return f"{proto}://{host}/api"
+
+
+@router.post("/{workflow_id}/stop", status_code=200)
+async def stop_workflow(
+    workflow_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Остановить текущий запуск воркфлоу."""
+    await _get_workflow_for_user(workflow_id, current_user.id, db)
+    request_cancel(workflow_id)
+    return {"ok": True}
 
 
 @router.get("/{workflow_id}/running-status")

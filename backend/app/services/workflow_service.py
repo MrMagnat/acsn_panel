@@ -32,6 +32,18 @@ _callback_results: dict[str, dict] = {}
 # In-memory live execution statuses: workflow_id → {run_id, nodes: {node_id → {status, output, error}}}
 _run_statuses: dict[str, dict] = {}
 
+# In-memory cancel flags: workflow_id → run_id (запрошена остановка)
+_cancel_flags: dict[str, str] = {}
+
+
+def request_cancel(workflow_id: str) -> None:
+    """Запрашиваем остановку воркфлоу."""
+    _cancel_flags[str(workflow_id)] = True
+
+
+def _is_cancelled(workflow_id: str) -> bool:
+    return _cancel_flags.get(str(workflow_id), False)
+
 
 def get_run_statuses(workflow_id: str) -> dict:
     return _run_statuses.get(str(workflow_id), {})
@@ -192,6 +204,9 @@ async def run_workflow(
 
     try:
         for node_id in order:
+            if _is_cancelled(str(workflow.id)):
+                raise ValueError("Воркфлоу остановлен пользователем")
+
             node = nodes_map.get(node_id)
             if not node:
                 continue
@@ -334,6 +349,7 @@ async def run_workflow(
         await db.commit()
         await db.refresh(run)
         _run_statuses.pop(str(workflow.id), None)
+        _cancel_flags.pop(str(workflow.id), None)
 
     except Exception as e:
         # Помечаем текущую running-ноду как error
@@ -341,12 +357,14 @@ async def run_workflow(
         for nid, st in wf_st.get("nodes", {}).items():
             if st.get("status") == "running":
                 _set_node_status(str(workflow.id), nid, "error", error=str(e))
-        run.status = "error"
+        cancelled = _cancel_flags.pop(str(workflow.id), False)
+        run.status = "cancelled" if cancelled else "error"
         run.error = str(e)
         run.result_json = node_outputs
         run.finished_at = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(run)
-        logger.error(f"Воркфлоу {workflow_id} ошибка: {e}")
+        _run_statuses.pop(str(workflow.id), None)
+        logger.error(f"Воркфлоу {workflow_id} {'отменён' if cancelled else 'ошибка'}: {e}")
 
     return run

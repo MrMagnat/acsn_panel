@@ -17,14 +17,24 @@
         <button
           v-if="lastRun"
           class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
-          :class="lastRun.status === 'success' ? 'border-green-200 bg-green-50 text-green-700' : lastRun.status === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-gray-200 text-gray-500'"
+          :class="lastRun.status === 'success' ? 'border-green-200 bg-green-50 text-green-700' : lastRun.status === 'error' ? 'border-red-200 bg-red-50 text-red-700' : lastRun.status === 'cancelled' ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500'"
           @click="showRunResult = true"
         >
-          {{ lastRun.status === 'success' ? '✓' : lastRun.status === 'error' ? '✗' : '⟳' }}
+          {{ lastRun.status === 'success' ? '✓' : lastRun.status === 'error' ? '✗' : lastRun.status === 'cancelled' ? '■' : '⟳' }}
           Последний запуск
         </button>
         <button class="btn-secondary text-sm" :disabled="saving" @click="saveGraph">
           {{ saving ? 'Сохраняю...' : '💾 Сохранить' }}
+        </button>
+        <button
+          v-if="running"
+          class="text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+          :disabled="stopping"
+          @click="stopWorkflow"
+        >
+          <span v-if="stopping" class="animate-spin">⟳</span>
+          <span v-else>■</span>
+          {{ stopping ? 'Останавливаю...' : 'Стоп' }}
         </button>
         <button
           class="btn-primary text-sm flex items-center gap-1.5"
@@ -156,7 +166,7 @@
             <div>
               <h3 class="font-semibold text-gray-900">Результат запуска</h3>
               <p class="text-xs text-gray-400 mt-0.5">
-                {{ lastRun.status === 'success' ? '✓ Успешно' : '✗ Ошибка' }}
+                {{ lastRun.status === 'success' ? '✓ Успешно' : lastRun.status === 'cancelled' ? '■ Остановлен' : '✗ Ошибка' }}
                 · {{ formatDate(lastRun.started_at) }}
               </p>
             </div>
@@ -216,6 +226,7 @@ const workflowName = ref('Новый воркфлоу')
 const agentTools = ref([])
 const saving = ref(false)
 const running = ref(false)
+const stopping = ref(false)
 const selectedNodeId = ref(null)
 const lastRun = ref(null)
 const showRunResult = ref(false)
@@ -409,6 +420,17 @@ function applyNodeStatuses(statuses) {
 
 function clearNodeStatuses() {
   nodes.value = nodes.value.map((n) => ({ ...n, data: { ...n.data, runStatus: null } }))
+}
+
+async function stopWorkflow() {
+  stopping.value = true
+  try {
+    await workflowApi.stop(workflowId)
+  } catch {
+    // тихо — даже если ошибка, флаг на сервере мог быть установлен
+  } finally {
+    stopping.value = false
+  }
 }
 
 async function runWorkflow() {

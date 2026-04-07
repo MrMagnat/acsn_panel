@@ -9,4 +9,5 @@ export const workflowApi = {
   run: (id) => http.post(`/workflows/${id}/run`),
   runs: (id) => http.get(`/workflows/${id}/runs`),
   runningStatus: (id) => http.get(`/workflows/${id}/running-status`),
+  stop: (id) => http.post(`/workflows/${id}/stop`),
 }

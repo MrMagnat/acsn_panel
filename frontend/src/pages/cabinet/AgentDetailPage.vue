@@ -92,8 +92,14 @@
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-gray-400">{{ wf.graph_json?.nodes?.length ?? 0 }} шагов</span>
                   <button
+                    v-if="runningWorkflow === wf.id"
+                    class="opacity-100 text-xs px-2 py-0.5 bg-red-100 text-red-600 border border-red-200 rounded-md hover:bg-red-200 transition-all"
+                    @click.stop="stopWorkflowFromAgent(wf.id)"
+                  >■</button>
+                  <button
                     class="opacity-0 group-hover:opacity-100 text-xs px-2 py-0.5 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-all"
-                    :class="runningWorkflow === wf.id ? 'opacity-100' : ''"
+                    :class="runningWorkflow === wf.id ? 'opacity-100 !bg-gray-300 cursor-not-allowed' : ''"
+                    :disabled="runningWorkflow === wf.id"
                     @click.stop="runWorkflowFromAgent(wf.id)"
                   >{{ runningWorkflow === wf.id ? '⟳' : '▶' }}</button>
                   <button
@@ -280,6 +286,12 @@ async function createWorkflow() {
   } catch (e) {
     toast.error(e.response?.data?.detail || 'Ошибка создания воркфлоу')
   }
+}
+
+async function stopWorkflowFromAgent(id) {
+  try {
+    await workflowApi.stop(id)
+  } catch { /* тихо */ }
 }
 
 async function runWorkflowFromAgent(id) {
