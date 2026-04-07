@@ -47,6 +47,7 @@ async def send_message(
     agent_id: str, user_id: str, content: str, db: AsyncSession,
     llm_model: str | None = None, llm_token: str | None = None,
     llm_provider: str | None = None,
+    base_url: str | None = None,
 ) -> ChatResponse:
     """Отправляем сообщение агенту, вызываем LLM и инструменты по необходимости."""
     # Загружаем агента с инструментами
@@ -207,6 +208,7 @@ async def send_message(
                             user_id=user_id,
                             log_id=str(run_log.id),
                             instance_id=str(run_log.id),
+                            base_url=base_url,
                         )
 
                         from datetime import datetime, timezone as tz
@@ -725,15 +727,20 @@ async def _call_tool_webhook(
     user_id: str,
     log_id: str | None = None,
     instance_id: str | None = None,
+    base_url: str | None = None,
 ) -> dict:
     """Вызываем webhook нашего движка для запуска воркфлоу инструмента."""
+    from ..core.config import settings
+    _base = base_url or settings.APP_BASE_URL
     payload = {
+        **field_values,
         "fields": field_values,
         "args": tool_args,
         "agent_id": agent_id,
         "user_id": user_id,
         "log_id": log_id,
         "instance_id": instance_id,
+        "callback_url": f"{_base}/webhooks/tool-callback",
     }
 
     try:

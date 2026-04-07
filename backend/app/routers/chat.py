@@ -1,5 +1,5 @@
 import json
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -38,10 +38,17 @@ async def get_history(
     return await chat_service.get_chat_history(agent_id, current_user.id, db)
 
 
+def _public_base_url(request: Request) -> str:
+    proto = request.headers.get("x-forwarded-proto", "http")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "localhost:8000")
+    return f"{proto}://{host}/api"
+
+
 @router.post("/{agent_id}/messages", response_model=ChatResponse)
 async def send_message(
     agent_id: str,
     data: SendMessageRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -78,6 +85,7 @@ async def send_message(
         llm_model=effective_model,
         llm_token=effective_token,
         llm_provider=effective_provider,
+        base_url=_public_base_url(request),
     )
 
     # Списываем баланс после успешного ответа

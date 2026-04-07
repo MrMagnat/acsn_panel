@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -72,8 +72,12 @@ async def list_active_template_agents(
 async def run_tool_standalone(
     tool_id: str,
     data: StandaloneRunRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Запустить инструмент напрямую из магазина без агента."""
-    return await agent_service.run_tool_standalone(current_user.id, tool_id, data.field_values, db)
+    proto = request.headers.get("x-forwarded-proto", "http")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "localhost:8000")
+    base_url = f"{proto}://{host}/api"
+    return await agent_service.run_tool_standalone(current_user.id, tool_id, data.field_values, db, base_url=base_url)

@@ -394,7 +394,7 @@ async def run_tool_manually(agent_id: str, user_id: str, tool_id: str, db: Async
         return {"status": "error", "log_id": run_log.id, "result": str(e), "energy_left": energy_left_after}
 
 
-async def run_tool_standalone(user_id: str, tool_id: str, field_values: dict, db: AsyncSession) -> dict:
+async def run_tool_standalone(user_id: str, tool_id: str, field_values: dict, db: AsyncSession, base_url: str = None) -> dict:
     """Запуск инструмента без агента (из магазина инструментов)."""
     import httpx
     import json as _json
@@ -451,12 +451,16 @@ async def run_tool_standalone(user_id: str, tool_id: str, field_values: dict, db
     # Подставляем реальный ASCN-ключ для полей типа ai_token
     resolved_fields = await _resolve_ascn_tokens(field_values, tool.fields, db)
 
+    from ..core.config import settings
+    _base = base_url or settings.APP_BASE_URL
     payload = {
+        **resolved_fields,
         "fields": resolved_fields,
         "args": {},
         "user_id": user_id,
         "log_id": str(run_log.id),
         "instance_id": str(run_log.id),
+        "callback_url": f"{_base}/webhooks/tool-callback",
     }
 
     try:
