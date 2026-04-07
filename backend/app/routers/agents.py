@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.db import get_db
@@ -109,11 +109,19 @@ async def remove_tool(
 async def run_tool(
     agent_id: str,
     tool_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Запустить инструмент вручную — вызвать его webhook с сохранёнными полями."""
-    return await agent_service.run_tool_manually(agent_id, current_user.id, tool_id, db)
+    base_url = _public_base_url(request)
+    return await agent_service.run_tool_manually(agent_id, current_user.id, tool_id, db, base_url=base_url)
+
+
+def _public_base_url(request: Request) -> str:
+    proto = request.headers.get("x-forwarded-proto", "http")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "localhost:8000")
+    return f"{proto}://{host}/api"
 
 
 @router.patch("/{agent_id}/tools/{tool_id}", response_model=AgentToolResponse)

@@ -174,8 +174,12 @@ async def execute_trigger(trigger_id: str, agent_id: str, tool_id: str) -> None:
             # Мержим: field_values инструмента — база, input_data триггера — перекрывает
             merged_fields = {**(agent_tool.field_values or {}), **trigger_input_data}
 
+            from ..core.config import settings
+            callback_url = f"{settings.APP_BASE_URL}/webhooks/tool-callback"
+
             # Вызываем webhook
             payload = {
+                **merged_fields,
                 "fields": merged_fields,
                 "args": {},
                 "agent_id": agent_id,
@@ -183,6 +187,7 @@ async def execute_trigger(trigger_id: str, agent_id: str, tool_id: str) -> None:
                 "trigger_id": trigger_id,
                 "log_id": str(run_log.id),
                 "instance_id": str(run_log.id),
+                "callback_url": callback_url,
             }
 
             import json as _json

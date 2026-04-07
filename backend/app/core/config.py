@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # Секрет для вебхука системы подписок
     SUBSCRIPTION_WEBHOOK_SECRET: str = "webhook_secret"
 
+    # Публичный URL сервера (используется в callback_url для инструментов)
+    APP_BASE_URL: str = "http://localhost:8000/api"
+
     class Config:
         env_file = ".env"
         extra = "ignore"
