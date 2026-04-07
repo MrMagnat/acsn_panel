@@ -13,6 +13,7 @@
 
       <div class="ml-auto flex items-center gap-2">
         <span class="text-xs text-gray-400">{{ kb?.records?.length ?? 0 }} строк · {{ kb?.fields?.length ?? 0 }} колонок</span>
+        <button class="btn-secondary text-xs" @click="openWebhook">🔗 Вебхук</button>
         <label class="btn-secondary text-xs cursor-pointer">
           📥 Импорт CSV
           <input type="file" accept=".csv" class="hidden" @change="importCsv" />
@@ -107,6 +108,59 @@
       </table>
     </div>
 
+    <!-- Модал вебхука -->
+    <div v-if="showWebhook" class="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4" @click.self="showWebhook = false">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold text-gray-900">🔗 Вебхук для базы знаний</h2>
+          <button class="text-gray-400 hover:text-gray-600" @click="showWebhook = false">✕</button>
+        </div>
+
+        <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3 text-sm text-gray-700">
+          <p>
+            Этот URL позволяет <strong>добавлять строки в базу знаний из любых внешних сервисов</strong> —
+            n8n, Make, Zapier, своих скриптов и т.д.
+          </p>
+          <p>
+            <strong>Токен</strong> — это уникальный секретный ключ для этой базы. Он вшит в ссылку и защищает от
+            несанкционированного доступа. Никому не передавайте ссылку целиком.
+          </p>
+        </div>
+
+        <div v-if="webhookLoading" class="text-sm text-gray-400 text-center py-2">Генерируем ссылку...</div>
+        <div v-else-if="webhookUrl" class="space-y-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500 mb-1 block">URL вебхука (POST-запрос)</label>
+            <div class="flex gap-2">
+              <input
+                :value="webhookUrl"
+                readonly
+                class="input text-xs font-mono flex-1 bg-gray-50"
+                @click="$event.target.select()"
+              />
+              <button
+                class="btn-secondary text-xs shrink-0"
+                @click="copyUrl"
+              >{{ copied ? '✓ Скопировано' : 'Копировать' }}</button>
+            </div>
+          </div>
+
+          <div class="p-3 bg-blue-50 rounded-lg border border-blue-100 text-xs text-blue-700 space-y-1.5">
+            <p class="font-medium">Пример запроса:</p>
+            <pre class="whitespace-pre-wrap font-mono">POST {{ webhookUrl }}
+Content-Type: application/json
+
+{
+  "{{ kb?.fields?.[0]?.name || 'поле' }}": "значение",
+  "{{ kb?.fields?.[1]?.name || 'другое_поле' }}": "значение"
+}</pre>
+          </div>
+        </div>
+
+        <button class="w-full btn-secondary text-sm" @click="showWebhook = false">Закрыть</button>
+      </div>
+    </div>
+
     <!-- Модал добавления колонки -->
     <div v-if="showAddField" class="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4" @click.self="showAddField = false">
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -162,7 +216,34 @@ const showAddField = ref(false)
 const newFieldName = ref('')
 const newFieldType = ref('text')
 
+// Вебхук
+const showWebhook = ref(false)
+const webhookUrl = ref('')
+const webhookLoading = ref(false)
+const copied = ref(false)
+
 onMounted(load)
+
+async function openWebhook() {
+  showWebhook.value = true
+  if (webhookUrl.value) return
+  webhookLoading.value = true
+  try {
+    const res = await kbApi.webhookToken(kb.value.id)
+    const base = window.location.origin + '/api'
+    webhookUrl.value = `${base}/webhooks/kb/${kb.value.id}?token=${res.data.token}`
+  } catch {
+    toast.error('Не удалось получить токен')
+  } finally {
+    webhookLoading.value = false
+  }
+}
+
+async function copyUrl() {
+  await navigator.clipboard.writeText(webhookUrl.value)
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
+}
 
 async function load() {
   loading.value = true

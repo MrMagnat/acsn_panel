@@ -21,4 +21,5 @@ export const kbApi = {
     return http.post(`/kb/${id}/import`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
   exportCsv: (id) => http.get(`/kb/${id}/export`, { responseType: 'blob' }),
+  webhookToken: (id) => http.get(`/kb/${id}/webhook-token`),
 }
