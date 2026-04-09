@@ -63,7 +63,7 @@
           href="https://ascn.ai/pricing"
           target="_blank"
           class="mt-2 block w-full text-center text-xs py-1.5 rounded-lg bg-gradient-to-r from-primary-500 to-purple-500 text-white font-medium hover:opacity-90 transition-opacity"
-        >⬆ Повысить тариф</a>
+        >Повысить тариф</a>
       </div>
 
       <div class="px-4 py-4 border-t border-gray-100">

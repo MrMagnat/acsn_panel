@@ -103,7 +103,7 @@
             href="https://ascn.ai/pricing"
             target="_blank"
             class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-primary-500 to-purple-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
-          >⬆ Получить подписку</a>
+          >Получить подписку</a>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div
