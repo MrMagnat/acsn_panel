@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 
 from ..models.agent import UserAgent
 from ..models.agent_tool import AgentTool
+from ..models.skill import AgentSkill
 from ..models.tool import Tool
 from ..models.chat import ChatMessage
 from ..models.subscription import Subscription
@@ -55,7 +56,8 @@ async def send_message(
         select(UserAgent)
         .where(UserAgent.id == agent_id, UserAgent.user_id == user_id)
         .options(
-            selectinload(UserAgent.agent_tools).selectinload(AgentTool.tool).selectinload(Tool.fields)
+            selectinload(UserAgent.agent_tools).selectinload(AgentTool.tool).selectinload(Tool.fields),
+            selectinload(UserAgent.agent_skills).selectinload(AgentSkill.skill),
         )
     )
     agent = agent_result.scalar_one_or_none()
