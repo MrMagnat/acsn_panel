@@ -12,6 +12,7 @@ class TariffPlanPublic(BaseModel):
     max_agents: int
     max_tools_per_agent: int
     max_workflows: int
+    max_knowledge_bases: int = 1
     tokens_per_month: int
     is_default: bool = False
     sort_order: int = 0

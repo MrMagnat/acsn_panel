@@ -53,6 +53,7 @@
               <span>👤 {{ plan.max_agents }} аг.</span>
               <span>🔧 {{ plan.max_tools_per_agent }} инстр./аг.</span>
               <span>⟨⟩ {{ plan.max_workflows }} вф.</span>
+              <span>🗃️ {{ plan.max_knowledge_bases }} KB</span>
               <span>🪙 {{ plan.tokens_per_month.toLocaleString('ru') }} ток./мес</span>
               <span v-if="plan.price_usd === 0" class="text-green-600">Бесплатно</span>
               <span v-else class="text-gray-700 font-medium">${{ (plan.price_usd / 100).toFixed(2) }}/мес</span>
@@ -183,7 +184,7 @@
             <input v-model.number="planForm.balance_usd_per_month" type="number" min="0" class="input text-sm" placeholder="0" />
             <p class="text-xs text-gray-400 mt-0.5">Добавляется к AI балансу пользователя при назначении тарифа</p>
           </div>
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">Агентов</label>
               <input v-model.number="planForm.max_agents" type="number" min="1" class="input text-sm" />
@@ -195,6 +196,10 @@
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">Воркфлоу</label>
               <input v-model.number="planForm.max_workflows" type="number" min="0" class="input text-sm" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Баз знаний</label>
+              <input v-model.number="planForm.max_knowledge_bases" type="number" min="0" class="input text-sm" />
             </div>
           </div>
           <div class="grid grid-cols-2 gap-3">
@@ -255,6 +260,7 @@ const PLAN_DEFAULTS = {
   max_agents: 3,
   max_tools_per_agent: 3,
   max_workflows: 3,
+  max_knowledge_bases: 3,
   tokens_per_month: 1000,
   is_active: true,
   is_default: false,
@@ -291,6 +297,7 @@ function openEditModal(plan) {
     max_agents: plan.max_agents,
     max_tools_per_agent: plan.max_tools_per_agent,
     max_workflows: plan.max_workflows,
+    max_knowledge_bases: plan.max_knowledge_bases || 1,
     tokens_per_month: plan.tokens_per_month,
     is_active: plan.is_active,
     is_default: plan.is_default,

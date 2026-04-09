@@ -15,6 +15,7 @@ class TariffPlan(Base):
     max_agents: Mapped[int] = mapped_column(Integer, default=1)
     max_tools_per_agent: Mapped[int] = mapped_column(Integer, default=2)
     max_workflows: Mapped[int] = mapped_column(Integer, default=1)
+    max_knowledge_bases: Mapped[int] = mapped_column(Integer, default=1)
     tokens_per_month: Mapped[int] = mapped_column(Integer, default=100)  # собственные токены платформы
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)     # применяется новым пользователям

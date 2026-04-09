@@ -4,15 +4,17 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional
 
+from sqlalchemy import select, func
 from ..core.db import get_db
 from ..core.deps import get_current_user
 from ..models.user import User
 from ..models.knowledge_base import KnowledgeBase, KBField, KBRecord
+from ..models.subscription import Subscription
+from ..models.tariff_plan import TariffPlan
 
 router = APIRouter(prefix="/kb", tags=["База знаний"])
 
@@ -80,6 +82,22 @@ async def list_kbs(db: AsyncSession = Depends(get_db), user: User = Depends(get_
 
 @router.post("", status_code=201)
 async def create_kb(data: KBCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    # Проверяем лимит баз знаний по тарифу
+    sub_result = await db.execute(
+        select(Subscription).where(Subscription.user_id == user.id).options(selectinload(Subscription.tariff_plan))
+    )
+    sub = sub_result.scalar_one_or_none()
+    max_kb = sub.tariff_plan.max_knowledge_bases if (sub and sub.tariff_plan) else 1
+    count_result = await db.execute(
+        select(func.count()).select_from(KnowledgeBase).where(KnowledgeBase.user_id == user.id)
+    )
+    kb_count = count_result.scalar()
+    if kb_count >= max_kb:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Достигнут лимит баз знаний ({max_kb}). Повысьте тариф.",
+        )
+
     kb = KnowledgeBase(user_id=user.id, name=data.name)
     db.add(kb)
     await db.flush()

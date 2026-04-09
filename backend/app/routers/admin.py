@@ -55,6 +55,7 @@ class TariffPlanCreate(BaseModel):
     max_agents: int = 1
     max_tools_per_agent: int = 2
     max_workflows: int = 1
+    max_knowledge_bases: int = 1
     tokens_per_month: int = 100
     is_active: bool = True
     is_default: bool = False
@@ -70,6 +71,7 @@ class TariffPlanUpdate(BaseModel):
     max_agents: int | None = None
     max_tools_per_agent: int | None = None
     max_workflows: int | None = None
+    max_knowledge_bases: int | None = None
     tokens_per_month: int | None = None
     is_active: bool | None = None
     is_default: bool | None = None

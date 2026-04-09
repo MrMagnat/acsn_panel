@@ -97,7 +97,14 @@
 
       <!-- Доступные тарифы -->
       <div v-if="plans.length" class="mt-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-3">Доступные тарифы</h2>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold text-gray-900">Доступные тарифы</h2>
+          <a
+            href="https://ascn.ai/pricing"
+            target="_blank"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-primary-500 to-purple-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
+          >⬆ Получить подписку</a>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div
             v-for="plan in plans"
@@ -114,6 +121,7 @@
               <div>👤 {{ plan.max_agents }} агентов</div>
               <div>🔧 {{ plan.max_tools_per_agent }} инструм./агент</div>
               <div>⟨⟩ {{ plan.max_workflows }} воркфлоу</div>
+              <div>🗃️ {{ plan.max_knowledge_bases }} баз знаний</div>
               <div>🪙 {{ plan.tokens_per_month.toLocaleString('ru') }} Agents Token/мес</div>
               <div v-if="plan.balance_usd_per_month > 0">🤖 ${{ (plan.balance_usd_per_month / 100).toFixed(2) }} AI баланс/мес</div>
             </div>
