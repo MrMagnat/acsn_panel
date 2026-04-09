@@ -463,7 +463,7 @@ def _build_system_prompt(agent, configured_tools: list) -> str:
                     cur = configured_values.get(f.field_name, "")
                     req = " (обязательное)" if f.required else ""
                     if cur:
-                        field_descs.append(f'"{f.field_name}"{req}: сейчас "{cur[:40]}"')
+                        field_descs.append(f'"{f.field_name}"{req}: сейчас "{str(cur)[:40]}"')
                     else:
                         field_descs.append(f'"{f.field_name}"{req}: не задано')
                 line += f"\n  → Поля: {', '.join(field_descs)}"
