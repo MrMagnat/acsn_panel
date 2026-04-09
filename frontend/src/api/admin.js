@@ -25,6 +25,12 @@ export const adminApi = {
   setUserTariff: (userId, data) => http.post(`/admin/users/${userId}/set-tariff`, data),
   adjustUserTokens: (userId, data) => http.post(`/admin/users/${userId}/tokens`, data),
 
+  // Скиллы
+  getSkills: () => http.get('/admin/skills'),
+  createSkill: (data) => http.post('/admin/skills', data),
+  updateSkill: (id, data) => http.put(`/admin/skills/${id}`, data),
+  deleteSkill: (id) => http.delete(`/admin/skills/${id}`),
+
   // ASCN маппинг
   getAscnSlugs: () => http.get('/admin/ascn-slugs'),
   getTariffMappings: () => http.get('/admin/tariff-mappings'),

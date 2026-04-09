@@ -15,6 +15,9 @@
         <RouterLink to="/admin/tools" class="nav-link" active-class="nav-link--active">
           <span>🔧</span> Инструменты
         </RouterLink>
+        <RouterLink to="/admin/skills" class="nav-link" active-class="nav-link--active">
+          <span>✨</span> Скиллы
+        </RouterLink>
         <RouterLink to="/admin/onboarding" class="nav-link" active-class="nav-link--active">
           <span>🎓</span> Онбординг
         </RouterLink>

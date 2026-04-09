@@ -17,10 +17,12 @@ from ..models.agent_tool import AgentTool
 from ..models.tool import Tool, ToolField
 from ..models.template_agent import TemplateAgent, TemplateAgentTool
 from ..models.energy_transaction import EnergyTransaction
+from ..models.skill import Skill
 from ..schemas.admin import AdminUserResponse, AdminUserUpdate
 from ..schemas.tool import ToolCreate, ToolUpdate, ToolResponse
 from ..schemas.template_agent import TemplateAgentCreate, TemplateAgentUpdate, TemplateAgentResponse
 from ..schemas.subscription import TariffPlanPublic
+from ..schemas.skill import SkillResponse, SkillCreate, SkillUpdate
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -676,6 +678,70 @@ async def delete_tool(
     """Удалить инструмент."""
     tool = await _get_tool(tool_id, db)
     await db.delete(tool)
+
+
+# ─── Скиллы ──────────────────────────────────────────────────────────────────
+
+@router.get("/skills", response_model=list[SkillResponse])
+async def list_skills(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Список всех скиллов."""
+    result = await db.execute(select(Skill).order_by(Skill.sort_order, Skill.name))
+    return result.scalars().all()
+
+
+@router.post("/skills", response_model=SkillResponse, status_code=201)
+async def create_skill(
+    data: SkillCreate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Создать скилл."""
+    existing = await db.execute(select(Skill).where(Skill.slug == data.slug))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"Скилл со slug '{data.slug}' уже существует")
+    skill = Skill(**data.model_dump())
+    db.add(skill)
+    await db.flush()
+    return skill
+
+
+@router.put("/skills/{skill_id}", response_model=SkillResponse)
+async def update_skill(
+    skill_id: str,
+    data: SkillUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Обновить скилл."""
+    result = await db.execute(select(Skill).where(Skill.id == skill_id))
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Скилл не найден")
+    if data.slug and data.slug != skill.slug:
+        existing = await db.execute(select(Skill).where(Skill.slug == data.slug))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"Скилл со slug '{data.slug}' уже существует")
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(skill, field, value)
+    await db.flush()
+    return skill
+
+
+@router.delete("/skills/{skill_id}", status_code=204)
+async def delete_skill(
+    skill_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Удалить скилл."""
+    result = await db.execute(select(Skill).where(Skill.id == skill_id))
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Скилл не найден")
+    await db.delete(skill)
 
 
 # ─── Вспомогательные функции ─────────────────────────────────────────────────

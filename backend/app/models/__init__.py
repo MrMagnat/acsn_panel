@@ -4,6 +4,7 @@ from .subscription import Subscription
 from .agent import UserAgent
 from .tool import Tool, ToolField
 from .agent_tool import AgentTool
+from .skill import Skill, AgentSkill
 from .template_agent import TemplateAgent, TemplateAgentTool
 from .chat import ChatMessage
 from .trigger import AutoTrigger
@@ -13,6 +14,7 @@ from .tool_run_log import ToolRunLog
 __all__ = [
     "User", "TariffPlan", "Subscription", "UserAgent",
     "Tool", "ToolField", "AgentTool",
+    "Skill", "AgentSkill",
     "TemplateAgent", "TemplateAgentTool",
     "ChatMessage", "AutoTrigger", "EnergyTransaction", "ToolRunLog",
 ]

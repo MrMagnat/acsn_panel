@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from .tool import ToolResponse
 from .trigger import TriggerResponse
+from .skill import AgentSkillResponse
 
 
 class AgentToolResponse(BaseModel):
@@ -50,6 +51,7 @@ class AgentResponse(BaseModel):
     prompt_suggestions: list[str] = []
     created_at: datetime
     agent_tools: list[AgentToolResponse] = []
+    agent_skills: list[AgentSkillResponse] = []
     auto_triggers: list[TriggerResponse] = []
 
     @field_validator('prompt_suggestions', mode='before')

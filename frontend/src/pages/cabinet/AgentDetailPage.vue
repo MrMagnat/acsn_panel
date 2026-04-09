@@ -72,6 +72,33 @@
             </p>
           </div>
 
+          <!-- Скиллы -->
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="font-semibold text-sm text-gray-700">✨ Скиллы</h2>
+              <button class="text-xs text-primary-600 hover:underline" @click="showSkillCatalog = true">+ Добавить</button>
+            </div>
+            <div v-if="!agent.agent_skills?.length" class="text-xs text-gray-400 text-center py-3">
+              Нет скиллов. Добавьте знания и поведения агенту.
+            </div>
+            <div v-else class="space-y-2">
+              <div
+                v-for="as_ in agent.agent_skills"
+                :key="as_.id"
+                class="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-100 hover:border-gray-200"
+              >
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="text-lg shrink-0">{{ as_.skill.icon }}</span>
+                  <div class="min-w-0">
+                    <div class="text-sm font-medium text-gray-800 truncate">{{ as_.skill.name }}</div>
+                    <div v-if="as_.skill.description" class="text-xs text-gray-400 truncate">{{ as_.skill.description }}</div>
+                  </div>
+                </div>
+                <button class="shrink-0 text-gray-300 hover:text-red-400 transition-colors ml-2" @click="removeSkill(as_.skill_id)">✕</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Воркфлоу -->
           <div class="card p-5">
             <div class="flex items-center justify-between mb-4">
@@ -221,6 +248,43 @@
       @close="showToolStore = false"
       @select="handleToolSelect"
     />
+
+    <!-- Каталог скиллов (slideout) -->
+    <Teleport to="body">
+      <div v-if="showSkillCatalog" class="fixed inset-0 z-40 flex">
+        <div class="flex-1 bg-black/40" @click="showSkillCatalog = false" />
+        <div class="w-full max-w-sm bg-white shadow-2xl flex flex-col overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+            <h3 class="font-semibold text-gray-900">✨ Каталог скиллов</h3>
+            <button class="text-gray-400 hover:text-gray-600" @click="showSkillCatalog = false">✕</button>
+          </div>
+          <div class="flex-1 overflow-y-auto p-4 space-y-2">
+            <div v-if="skillCatalogLoading" class="text-center py-8 text-gray-400">Загрузка...</div>
+            <div v-else-if="!skillCatalog.length" class="text-center py-8 text-gray-400">
+              <div class="text-3xl mb-2">✨</div>
+              <div>Скиллов пока нет</div>
+            </div>
+            <div
+              v-for="skill in skillCatalog"
+              :key="skill.id"
+              class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 hover:border-primary-300 hover:bg-primary-50/30 transition-colors"
+              :class="isSkillAdded(skill.id) ? 'opacity-50 pointer-events-none' : 'cursor-pointer'"
+              @click="addSkill(skill.id)"
+            >
+              <span class="text-2xl shrink-0">{{ skill.icon }}</span>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-sm text-gray-900">{{ skill.name }}</span>
+                  <span v-if="isSkillAdded(skill.id)" class="text-xs text-green-600">✓ добавлен</span>
+                </div>
+                <p v-if="skill.description" class="text-xs text-gray-500 mt-0.5">{{ skill.description }}</p>
+                <span v-if="skill.category" class="inline-block mt-1 text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded-full border border-purple-100">{{ skill.category }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -233,6 +297,7 @@ import { useToastStore } from '@/stores/toast'
 import { useSubscriptionStore } from '@/stores/subscription'
 import { agentsApi } from '@/api/agents'
 import { workflowApi } from '@/api/workflow'
+import { skillsApi } from '@/api/skills'
 import ToolCard from '@/components/tools/ToolCard.vue'
 
 import TriggersBlock from '@/components/agents/TriggersBlock.vue'
@@ -257,6 +322,9 @@ const runLogs = ref([])
 const selectedLog = ref(null)
 const workflows = ref([])
 const runningWorkflow = ref(null)
+const showSkillCatalog = ref(false)
+const skillCatalog = ref([])
+const skillCatalogLoading = ref(false)
 
 const atToolLimit = computed(() => {
   if (!agent.value || !subStore.data) return false
@@ -267,7 +335,7 @@ onMounted(async () => {
   const agentRes = await agentsStore.fetchAgent(route.params.id).catch(() => null)
   if (agentRes) {
     agent.value = agentRes
-    await Promise.all([loadRunLogs(), loadWorkflows()])
+    await Promise.all([loadRunLogs(), loadWorkflows(), loadSkillCatalog()])
   }
   loading.value = false
 })
@@ -405,5 +473,41 @@ async function handleToolFieldsUpdate({ toolId, fieldValues }) {
 function handleAgentSaved(updated) {
   agent.value = { ...agent.value, ...updated }
   showEditModal.value = false
+}
+
+async function loadSkillCatalog() {
+  skillCatalogLoading.value = true
+  try {
+    const res = await skillsApi.list()
+    skillCatalog.value = res.data
+  } catch { /* тихо */ } finally {
+    skillCatalogLoading.value = false
+  }
+}
+
+function isSkillAdded(skillId) {
+  return agent.value?.agent_skills?.some(as => as.skill_id === skillId)
+}
+
+async function addSkill(skillId) {
+  if (isSkillAdded(skillId)) return
+  try {
+    const res = await skillsApi.addToAgent(agent.value.id, skillId)
+    if (!agent.value.agent_skills) agent.value.agent_skills = []
+    agent.value.agent_skills.push(res.data)
+    toast.success('Скилл добавлен')
+  } catch (e) {
+    toast.error(e.response?.data?.detail || 'Ошибка добавления скилла')
+  }
+}
+
+async function removeSkill(skillId) {
+  try {
+    await skillsApi.removeFromAgent(agent.value.id, skillId)
+    agent.value.agent_skills = agent.value.agent_skills.filter(as => as.skill_id !== skillId)
+    toast.success('Скилл удалён')
+  } catch (e) {
+    toast.error(e.response?.data?.detail || 'Ошибка')
+  }
 }
 </script>

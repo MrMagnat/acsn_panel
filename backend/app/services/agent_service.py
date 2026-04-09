@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 import json as _json_module
 from ..models.agent import UserAgent
 from ..models.agent_tool import AgentTool
+from ..models.skill import AgentSkill
 from ..models.tool import Tool, ToolField
 from ..models.subscription import Subscription
 from ..models.template_agent import TemplateAgent, TemplateAgentTool
@@ -59,6 +60,7 @@ async def get_agent_by_id(agent_id: str, user_id: str, db: AsyncSession) -> User
         .where(UserAgent.id == agent_id, UserAgent.user_id == user_id)
         .options(
             selectinload(UserAgent.agent_tools).selectinload(AgentTool.tool).selectinload(Tool.fields),
+            selectinload(UserAgent.agent_skills).selectinload(AgentSkill.skill),
             selectinload(UserAgent.auto_triggers).selectinload(AutoTrigger.tool).selectinload(Tool.fields),
         )
     )

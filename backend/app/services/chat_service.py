@@ -84,6 +84,7 @@ async def send_message(
 
     # Все инструменты агента — для системных операций (настройка, автозапуск)
     all_agent_tools = agent.agent_tools
+    agent_skills = getattr(agent, 'agent_skills', [])
     # Только настроенные — для вызова вебхуков
     configured_tools = [at for at in agent.agent_tools if at.is_configured]
 
@@ -105,8 +106,8 @@ async def send_message(
         messages.append({"role": msg.role, "content": msg.content})
     messages.append({"role": "user", "content": content})
 
-    # Строим полный системный промпт с описанием инструментов
-    system_prompt = _build_system_prompt(agent, all_agent_tools)
+    # Строим полный системный промпт с описанием инструментов и скиллов
+    system_prompt = _build_system_prompt(agent, all_agent_tools, agent_skills)
 
     # Вызываем LLM если настроен (OpenRouter или кастомный URL)
     assistant_content = ""
@@ -438,7 +439,7 @@ async def _handle_create_trigger(
     })
 
 
-def _build_system_prompt(agent, configured_tools: list) -> str:
+def _build_system_prompt(agent, configured_tools: list, agent_skills: list = None) -> str:
     """Строим полный системный промпт: базовый + скиллы + блок инструментов."""
     parts = []
 
@@ -455,9 +456,17 @@ def _build_system_prompt(agent, configured_tools: list) -> str:
     if agent.prompt and agent.prompt.strip():
         parts.append(agent.prompt.strip())
 
-    # 2. Скиллы / знания
+    # 2. Скиллы / знания (текстовое поле агента)
     if agent.skills and agent.skills.strip():
         parts.append(f"## Твои знания и навыки\n{agent.skills.strip()}")
+
+    # 2b. Подключённые скиллы из каталога
+    if agent_skills:
+        for agent_skill in agent_skills:
+            skill = agent_skill.skill
+            if skill and skill.is_active and skill.content and skill.content.strip():
+                header = f"## {skill.icon} {skill.name}"
+                parts.append(f"{header}\n{skill.content.strip()}")
 
     # 3. Блок инструментов — только если есть настроенные
     if configured_tools:

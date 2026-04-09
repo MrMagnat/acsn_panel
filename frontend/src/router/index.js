@@ -34,6 +34,7 @@ const routes = [
       { path: 'users', name: 'AdminUsers', component: () => import('@/pages/admin/AdminUsersPage.vue') },
       { path: 'agents', name: 'AdminAgents', component: () => import('@/pages/admin/AdminAgentsPage.vue') },
       { path: 'tools', name: 'AdminTools', component: () => import('@/pages/admin/AdminToolsPage.vue') },
+      { path: 'skills', name: 'AdminSkills', component: () => import('@/pages/admin/AdminSkillsPage.vue') },
       { path: 'onboarding', name: 'AdminOnboarding', component: () => import('@/pages/admin/AdminOnboardingPage.vue') },
       { path: 'ascn', name: 'AdminAscn', component: () => import('@/pages/admin/AdminAscnPage.vue') },
       { path: 'tariffs', name: 'AdminTariffs', component: () => import('@/pages/admin/AdminTariffPage.vue') },
