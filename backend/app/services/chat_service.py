@@ -126,15 +126,31 @@ async def send_message(
 
     if llm_url:
         try:
-            llm_response = await _call_llm(
-                llm_url=llm_url,
-                system_prompt=system_prompt,
-                messages=messages,
-                tools=all_tool_defs,
-                llm_model=effective_model,
-                llm_token=effective_token,
-                provider=effective_provider,
-            )
+            try:
+                llm_response = await _call_llm(
+                    llm_url=llm_url,
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    tools=all_tool_defs,
+                    llm_model=effective_model,
+                    llm_token=effective_token,
+                    provider=effective_provider,
+                )
+            except Exception as tool_err:
+                # Модель не поддерживает tool use — повторяем без инструментов
+                err_str = str(tool_err).lower()
+                if "tool" in err_str or "function" in err_str or "endpoints" in err_str:
+                    llm_response = await _call_llm(
+                        llm_url=llm_url,
+                        system_prompt=system_prompt,
+                        messages=messages,
+                        tools=[],
+                        llm_model=effective_model,
+                        llm_token=effective_token,
+                        provider=effective_provider,
+                    )
+                else:
+                    raise
 
             if llm_response.get("tool_call"):
                 tool_call = llm_response["tool_call"]
