@@ -60,7 +60,7 @@
       <!-- Токены и баланс -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
 
-        <!-- Собственные токены -->
+        <!-- Agents Token -->
         <div class="card p-5">
           <div class="flex items-center justify-between mb-3">
             <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Agents Token</div>
@@ -78,29 +78,7 @@
             />
           </div>
           <p class="text-xs text-gray-400 mt-2">
-            Используются для действий в воркфлоу и автоматизациях
-          </p>
-        </div>
-
-        <!-- ASCN энергия -->
-        <div class="card p-5">
-          <div class="flex items-center justify-between mb-3">
-            <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Токены ASCN</div>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">ASCN</span>
-          </div>
-          <div class="flex items-baseline gap-2 mb-2">
-            <span class="text-3xl font-bold text-gray-900">{{ subStore.energyLeft.toLocaleString('ru') }}</span>
-            <span class="text-sm text-gray-400">/ {{ subStore.energyPerWeek.toLocaleString('ru') }}</span>
-          </div>
-          <div class="w-full bg-gray-100 rounded-full h-2">
-            <div
-              class="h-2 rounded-full transition-all"
-              :class="subStore.energyPercent > 20 ? 'bg-orange-400' : 'bg-red-400'"
-              :style="{ width: subStore.energyPercent + '%' }"
-            />
-          </div>
-          <p class="text-xs text-gray-400 mt-2">
-            Синхронизируется из ASCN при каждом входе
+            Списываются при запуске инструментов и воркфлоу
           </p>
         </div>
       </div>

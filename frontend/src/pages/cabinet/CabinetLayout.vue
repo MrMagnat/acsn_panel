@@ -38,31 +38,16 @@
           💎 {{ subStore.planName }}
         </RouterLink>
 
-        <!-- Собственные токены (если есть тарифный план) -->
-        <template v-if="subStore.tokensPerMonth > 0">
-          <div class="flex justify-between items-center mb-1">
-            <span class="text-xs text-gray-500">🪙 Agents Token</span>
-            <span class="text-xs font-medium text-gray-700">{{ subStore.tokensLeft.toLocaleString('ru') }}</span>
-          </div>
-          <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
-            <div
-              class="h-full rounded-full transition-all bg-purple-400"
-              :class="subStore.tokensPercent > 20 ? 'bg-purple-400' : 'bg-red-400'"
-              :style="{ width: subStore.tokensPercent + '%' }"
-            ></div>
-          </div>
-        </template>
-
-        <!-- ASCN энергия -->
+        <!-- Agents Token -->
         <div class="flex justify-between items-center mb-1">
-          <span class="text-xs text-gray-500">⚡ ASCN</span>
-          <span class="text-xs font-medium text-gray-700">{{ subStore.energyLeft }} / {{ subStore.energyPerWeek }}</span>
+          <span class="text-xs text-gray-500">🪙 Agents Token</span>
+          <span class="text-xs font-medium text-gray-700">{{ subStore.tokensLeft.toLocaleString('ru') }}</span>
         </div>
         <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div
             class="h-full rounded-full transition-all"
-            :class="subStore.energyPercent > 30 ? 'bg-green-400' : subStore.energyPercent > 10 ? 'bg-yellow-400' : 'bg-red-400'"
-            :style="{ width: subStore.energyPercent + '%' }"
+            :class="subStore.tokensPercent > 20 ? 'bg-purple-400' : 'bg-red-400'"
+            :style="{ width: subStore.tokensPercent + '%' }"
           ></div>
         </div>
         <!-- AI-баланс -->

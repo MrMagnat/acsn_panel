@@ -78,8 +78,7 @@ async def _sync_subscription(user: User, ascn_token: str, db: AsyncSession) -> N
 
         sub.plan = slug
         sub.plan_name = plan_name
-        sub.energy_left = credits
-        sub.energy_per_week = credits
+        # ASCN energy убрана — используем только Agents Token
         sub.max_agents = mapping.get("max_agents", sub.max_agents)
         sub.max_tools_per_agent = mapping.get("max_tools_per_agent", sub.max_tools_per_agent)
 
