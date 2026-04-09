@@ -34,6 +34,7 @@ export const useSubscriptionStore = defineStore('subscription', () => {
   // Лимиты (из подписки)
   const maxAgents = computed(() => data.value?.max_agents ?? 1)
   const maxToolsPerAgent = computed(() => data.value?.max_tools_per_agent ?? 2)
+  const maxKnowledgeBases = computed(() => data.value?.tariff_plan?.max_knowledge_bases ?? 1)
 
   async function fetch() {
     try {
@@ -52,7 +53,7 @@ export const useSubscriptionStore = defineStore('subscription', () => {
     tokensLeft, tokensPerMonth, tokensPercent,
     tariffPlan, planName,
     balanceUsd, balanceFormatted,
-    maxAgents, maxToolsPerAgent,
+    maxAgents, maxToolsPerAgent, maxKnowledgeBases,
     fetch, setEnergyLeft,
   }
 })

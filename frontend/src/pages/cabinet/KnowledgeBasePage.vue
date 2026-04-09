@@ -52,22 +52,55 @@
         </form>
       </div>
     </div>
+
+    <!-- Попап: лимит баз знаний -->
+    <div v-if="showLimitModal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="showLimitModal = false">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
+        <div class="text-4xl mb-3">🗃️</div>
+        <h2 class="font-bold text-gray-900 text-lg mb-2">Лимит баз знаний</h2>
+        <p class="text-gray-500 text-sm mb-5">
+          Ваш тариф позволяет создать не более <strong>{{ limitCount }}</strong> {{ limitWord }}.
+          Чтобы создать больше — повысьте тариф.
+        </p>
+        <div class="flex gap-3">
+          <button class="btn-secondary flex-1" @click="showLimitModal = false">Закрыть</button>
+          <a
+            href="https://ascn.ai/pricing"
+            target="_blank"
+            class="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-gradient-to-r from-primary-500 to-purple-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
+            @click="showLimitModal = false"
+          >Повысить тариф</a>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { kbApi } from '@/api/knowledge-base'
 import { useToastStore } from '@/stores/toast'
+import { useSubscriptionStore } from '@/stores/subscription'
 
 const router = useRouter()
 const toast = useToastStore()
+const subStore = useSubscriptionStore()
 const bases = ref([])
 const loading = ref(true)
 const showCreate = ref(false)
 const newName = ref('')
 const creating = ref(false)
+
+// Лимит
+const showLimitModal = ref(false)
+const limitCount = ref(1)
+const limitWord = computed(() => {
+  const n = limitCount.value
+  if (n === 1) return 'базу'
+  if (n >= 2 && n <= 4) return 'базы'
+  return 'баз'
+})
 
 onMounted(load)
 
@@ -89,8 +122,14 @@ async function createBase() {
     showCreate.value = false
     newName.value = ''
     router.push(`/cabinet/knowledge-base/${res.data.id}`)
-  } catch {
-    toast.error('Ошибка создания')
+  } catch (e) {
+    if (e.response?.status === 403) {
+      showCreate.value = false
+      limitCount.value = subStore.maxKnowledgeBases
+      showLimitModal.value = true
+    } else {
+      toast.error('Ошибка создания')
+    }
   } finally {
     creating.value = false
   }
