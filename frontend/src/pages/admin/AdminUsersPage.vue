@@ -57,187 +57,194 @@
             <td class="px-4 py-3 text-gray-600">{{ user.tools_count }}</td>
             <td class="px-4 py-3 text-gray-400 text-xs">{{ formatDate(user.created_at) }}</td>
             <td class="px-4 py-3">
-              <div class="flex gap-2">
-                <button class="text-xs text-primary-600 hover:underline" @click="openEdit(user)">Изменить</button>
-                <button class="text-xs text-purple-600 hover:underline" @click="openTariff(user)">💎 Тариф</button>
-                <button class="text-xs text-yellow-600 hover:underline" @click="openEnergy(user)">⚡ ASCN</button>
-                <button class="text-xs text-green-600 hover:underline" @click="openBalance(user)">💰 $</button>
-              </div>
+              <button class="text-xs text-primary-600 hover:underline" @click="openProfile(user)">Управление</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- Модал редактирования пользователя -->
-    <div v-if="editUser" class="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4" @click.self="editUser = null">
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <h2 class="font-semibold mb-4">Редактировать пользователя</h2>
-        <form @submit.prevent="saveUser" class="space-y-3">
-          <div>
-            <label class="label">Имя</label>
-            <input v-model="editForm.name" class="input" />
-          </div>
-          <div class="flex items-center gap-2">
-            <input type="checkbox" v-model="editForm.is_admin" class="w-4 h-4" />
-            <label class="text-sm text-gray-700">Администратор</label>
-          </div>
-          <div class="flex gap-2 pt-2">
-            <button type="button" class="btn-secondary flex-1" @click="editUser = null">Отмена</button>
-            <button type="submit" class="btn-primary flex-1">Сохранить</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Модал долларового баланса -->
-    <div v-if="balanceUser" class="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4" @click.self="balanceUser = null">
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <h2 class="font-semibold mb-1">💰 AI баланс: {{ balanceUser.name }}</h2>
-        <p class="text-xs text-gray-400 mb-4">Текущий баланс: <strong>${{ (balanceUser._balance_usd ?? 0) / 100 | 0 }}.${{ String((balanceUser._balance_usd ?? 0) % 100).padStart(2,'0') }}</strong></p>
-        <div class="space-y-3">
-          <div>
-            <label class="label">Начислить (центы, 100 = $1.00)</label>
-            <input v-model.number="balanceAmount" type="number" min="1" class="input" placeholder="500 = $5.00" />
-          </div>
-          <div class="flex gap-2">
-            <button class="btn-secondary flex-1" @click="balanceUser = null">Отмена</button>
-            <button class="btn-primary flex-1" :disabled="!balanceAmount || balanceAdding" @click="applyBalance">
-              {{ balanceAdding ? '...' : 'Начислить' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Модал назначения тарифа -->
-    <div v-if="tariffUser" class="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4" @click.self="tariffUser = null">
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <h2 class="font-semibold mb-1">💎 Тарифный план: {{ tariffUser.name }}</h2>
-        <p class="text-xs text-gray-400 mb-4">{{ tariffUser.email }}</p>
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs font-medium text-gray-600 mb-1 block">Тариф</label>
-            <select v-model="tariffForm.tariff_plan_id" class="input text-sm">
-              <option value="">— без тарифа —</option>
-              <option v-for="p in availablePlans" :key="p.id" :value="p.id">{{ p.name }} ({{ p.slug }})</option>
-            </select>
-          </div>
-          <div>
-            <label class="text-xs font-medium text-gray-600 mb-1 block">Добавить токены платформы</label>
-            <input v-model.number="tariffForm.add_tokens" type="number" min="0" class="input text-sm" placeholder="0" />
-            <p class="text-xs text-gray-400 mt-0.5">Будут добавлены к текущему балансу</p>
-          </div>
-          <div class="flex gap-2 pt-1">
-            <button class="btn-secondary flex-1 text-sm" @click="tariffUser = null">Отмена</button>
-            <button class="btn-primary flex-1 text-sm" :disabled="tariffSaving" @click="applyTariff">
-              {{ tariffSaving ? '...' : 'Применить' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Модал управления токенами -->
-    <div v-if="energyUser" class="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4" @click.self="energyUser = null">
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col overflow-hidden max-h-[90vh]">
-        <!-- Шапка -->
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div>
-            <h2 class="font-semibold">⚡ Токены: {{ energyUser.name }}</h2>
-            <p class="text-xs text-gray-400 mt-0.5">{{ energyUser.email }}</p>
-          </div>
-          <button class="text-gray-400 hover:text-gray-600 text-xl" @click="energyUser = null">✕</button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto">
-          <!-- Баланс -->
-          <div v-if="energyData" class="px-6 py-4 border-b border-gray-100">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-sm text-gray-500">Текущий баланс</span>
-              <span class="text-xl font-bold text-gray-900">{{ energyData.energy_left }}
-                <span class="text-sm font-normal text-gray-400">/ {{ energyData.energy_per_week }} в неделю</span>
-              </span>
-            </div>
-            <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                class="h-full rounded-full transition-all"
-                :class="energyPercent > 30 ? 'bg-green-400' : energyPercent > 10 ? 'bg-yellow-400' : 'bg-red-400'"
-                :style="{ width: energyPercent + '%' }"
-              ></div>
-            </div>
-          </div>
-
-          <!-- Форма начисления/списания -->
-          <div class="px-6 py-4 border-b border-gray-100">
-            <h3 class="text-sm font-medium text-gray-700 mb-3">Изменить баланс</h3>
-            <div class="flex gap-2 mb-2">
-              <button
-                class="flex-1 py-2 text-xs rounded-lg border transition-colors"
-                :class="adjustMode === 'add' ? 'border-green-400 bg-green-50 text-green-700 font-medium' : 'border-gray-200 text-gray-500'"
-                @click="adjustMode = 'add'"
-              >+ Начислить</button>
-              <button
-                class="flex-1 py-2 text-xs rounded-lg border transition-colors"
-                :class="adjustMode === 'sub' ? 'border-red-400 bg-red-50 text-red-700 font-medium' : 'border-gray-200 text-gray-500'"
-                @click="adjustMode = 'sub'"
-              >− Списать</button>
-            </div>
-            <div class="flex gap-2">
-              <input
-                v-model.number="adjustAmount"
-                type="number"
-                min="1"
-                class="input flex-1"
-                placeholder="Количество токенов"
-              />
-              <input
-                v-model="adjustDesc"
-                class="input flex-1"
-                placeholder="Причина (необязательно)"
-              />
-              <button class="btn-primary text-sm shrink-0" :disabled="!adjustAmount || adjusting" @click="applyAdjust">
-                {{ adjusting ? '...' : 'Применить' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- История транзакций -->
-          <div class="px-6 py-4">
-            <h3 class="text-sm font-medium text-gray-700 mb-3">История расходов</h3>
-            <div v-if="!energyData?.transactions?.length" class="text-sm text-gray-400 text-center py-4">
-              Транзакций пока нет
-            </div>
-            <div class="space-y-2">
-              <div
-                v-for="tx in energyData?.transactions"
-                :key="tx.id"
-                class="flex items-start justify-between py-2 border-b border-gray-50 last:border-0"
-              >
-                <div class="min-w-0">
-                  <div class="text-sm text-gray-800">{{ tx.description }}</div>
-                  <div class="text-xs text-gray-400 mt-0.5">
-                    {{ formatDateTime(tx.created_at) }}
-                    <span v-if="tx.tool_name" class="ml-1">· {{ tx.tool_name }}</span>
-                  </div>
-                </div>
-                <span
-                  class="text-sm font-semibold ml-4 shrink-0"
-                  :class="tx.amount > 0 ? 'text-green-600' : 'text-red-500'"
-                >
-                  {{ tx.amount > 0 ? '+' : '' }}{{ tx.amount }}
-                </span>
+    <!-- Профиль пользователя — правая панель -->
+    <Teleport to="body">
+      <div v-if="profileUser" class="fixed inset-0 z-40 flex">
+        <!-- Затемнение -->
+        <div class="flex-1 bg-black/40" @click="closeProfile" />
+        <!-- Панель -->
+        <div class="w-full max-w-lg bg-white shadow-2xl flex flex-col overflow-hidden">
+          <!-- Шапка -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold">
+                {{ profileUser.name.charAt(0).toUpperCase() }}
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">{{ profileUser.name }}</div>
+                <div class="text-xs text-gray-400">{{ profileUser.email }}</div>
               </div>
             </div>
+            <button class="text-gray-400 hover:text-gray-600 text-xl leading-none" @click="closeProfile">✕</button>
+          </div>
+
+          <!-- Контент -->
+          <div class="flex-1 overflow-y-auto divide-y divide-gray-100">
+
+            <!-- 1. Профиль -->
+            <div class="px-6 py-5">
+              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Профиль</div>
+              <form @submit.prevent="saveProfile" class="space-y-3">
+                <div>
+                  <label class="label">Имя</label>
+                  <input v-model="profileForm.name" class="input" />
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" v-model="profileForm.is_admin" class="w-4 h-4" id="chk-admin" />
+                  <label for="chk-admin" class="text-sm text-gray-700 cursor-pointer">Администратор</label>
+                </div>
+                <button type="submit" class="btn-primary text-sm" :disabled="profileSaving">
+                  {{ profileSaving ? '...' : 'Сохранить профиль' }}
+                </button>
+              </form>
+            </div>
+
+            <!-- 2. Тариф -->
+            <div class="px-6 py-5">
+              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Тарифный план</div>
+              <div class="space-y-3">
+                <div>
+                  <label class="label">Назначить тариф</label>
+                  <select v-model="tariffForm.tariff_plan_id" class="input text-sm">
+                    <option value="">— без тарифа —</option>
+                    <option v-for="p in availablePlans" :key="p.id" :value="p.id">{{ p.name }} ({{ p.slug }})</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="label">Дополнительно добавить токены</label>
+                  <input v-model.number="tariffForm.add_tokens" type="number" min="0" class="input text-sm" placeholder="0" />
+                </div>
+                <button class="btn-primary text-sm" :disabled="tariffSaving" @click="applyTariff">
+                  {{ tariffSaving ? '...' : 'Применить тариф' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- 3. Agents Token -->
+            <div class="px-6 py-5">
+              <div class="flex items-center justify-between mb-3">
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Agents Token</div>
+                <div v-if="profileData" class="text-sm font-bold text-gray-900">
+                  {{ profileData.tokens_left.toLocaleString('ru') }}
+                  <span class="text-xs font-normal text-gray-400">токенов</span>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <div class="flex gap-2">
+                  <button
+                    class="flex-1 py-1.5 text-xs rounded-lg border transition-colors"
+                    :class="tokenMode === 'add' ? 'border-green-400 bg-green-50 text-green-700 font-medium' : 'border-gray-200 text-gray-500'"
+                    @click="tokenMode = 'add'"
+                  >+ Начислить</button>
+                  <button
+                    class="flex-1 py-1.5 text-xs rounded-lg border transition-colors"
+                    :class="tokenMode === 'sub' ? 'border-red-400 bg-red-50 text-red-700 font-medium' : 'border-gray-200 text-gray-500'"
+                    @click="tokenMode = 'sub'"
+                  >− Списать</button>
+                </div>
+                <div class="flex gap-2">
+                  <input
+                    v-model.number="tokenAmount"
+                    type="number"
+                    min="1"
+                    class="input flex-1 text-sm"
+                    placeholder="Количество"
+                  />
+                  <input
+                    v-model="tokenDesc"
+                    class="input flex-1 text-sm"
+                    placeholder="Причина"
+                  />
+                  <button class="btn-primary text-sm shrink-0" :disabled="!tokenAmount || tokenSaving" @click="applyTokens">
+                    {{ tokenSaving ? '...' : 'ОК' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. AI Баланс -->
+            <div class="px-6 py-5">
+              <div class="flex items-center justify-between mb-3">
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider">AI Баланс</div>
+                <div v-if="profileData" class="text-sm font-bold" :class="profileData.balance_usd > 0 ? 'text-green-600' : 'text-gray-400'">
+                  ${{ (profileData.balance_usd / 100).toFixed(2) }}
+                </div>
+              </div>
+              <div class="space-y-2">
+                <div class="flex gap-2">
+                  <button
+                    class="flex-1 py-1.5 text-xs rounded-lg border transition-colors"
+                    :class="balanceMode === 'add' ? 'border-green-400 bg-green-50 text-green-700 font-medium' : 'border-gray-200 text-gray-500'"
+                    @click="balanceMode = 'add'"
+                  >+ Начислить</button>
+                  <button
+                    class="flex-1 py-1.5 text-xs rounded-lg border transition-colors"
+                    :class="balanceMode === 'sub' ? 'border-red-400 bg-red-50 text-red-700 font-medium' : 'border-gray-200 text-gray-500'"
+                    @click="balanceMode = 'sub'"
+                  >− Списать</button>
+                </div>
+                <div class="flex gap-2 items-center">
+                  <input
+                    v-model.number="balanceAmount"
+                    type="number"
+                    min="1"
+                    class="input flex-1 text-sm"
+                    placeholder="Центы (100 = $1.00)"
+                  />
+                  <button class="btn-primary text-sm shrink-0" :disabled="!balanceAmount || balanceSaving" @click="applyBalance">
+                    {{ balanceSaving ? '...' : 'ОК' }}
+                  </button>
+                </div>
+                <p class="text-xs text-gray-400">Вводите в центах: 500 = $5.00</p>
+              </div>
+            </div>
+
+            <!-- 5. История транзакций -->
+            <div class="px-6 py-5">
+              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">История токенов</div>
+              <div v-if="profileLoading" class="text-sm text-gray-400 text-center py-4">Загрузка...</div>
+              <div v-else-if="!profileData?.transactions?.length" class="text-sm text-gray-400 text-center py-4">
+                Транзакций пока нет
+              </div>
+              <div v-else class="space-y-1">
+                <div
+                  v-for="tx in profileData.transactions"
+                  :key="tx.id"
+                  class="flex items-start justify-between py-2 border-b border-gray-50 last:border-0"
+                >
+                  <div class="min-w-0">
+                    <div class="text-sm text-gray-800">{{ tx.description }}</div>
+                    <div class="text-xs text-gray-400 mt-0.5">
+                      {{ formatDateTime(tx.created_at) }}
+                      <span v-if="tx.tool_name" class="ml-1">· {{ tx.tool_name }}</span>
+                    </div>
+                  </div>
+                  <span
+                    class="text-sm font-semibold ml-4 shrink-0"
+                    :class="tx.amount > 0 ? 'text-green-600' : 'text-red-500'"
+                  >
+                    {{ tx.amount > 0 ? '+' : '' }}{{ tx.amount }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { adminApi } from '@/api/admin'
 import { useToastStore } from '@/stores/toast'
 
@@ -245,32 +252,29 @@ const toast = useToastStore()
 const users = ref([])
 const loading = ref(true)
 const filterPlan = ref('')
-const editUser = ref(null)
-const editForm = ref({ name: '', is_admin: false })
+
+// Профиль
+const profileUser = ref(null)
+const profileData = ref(null)
+const profileLoading = ref(false)
+const profileForm = ref({ name: '', is_admin: false })
+const profileSaving = ref(false)
 
 // Тариф
-const tariffUser = ref(null)
 const tariffForm = ref({ tariff_plan_id: '', add_tokens: 0 })
 const tariffSaving = ref(false)
 const availablePlans = ref([])
 
-// Энергия
-const energyUser = ref(null)
-const energyData = ref(null)
-const adjustMode = ref('add')
-const adjustAmount = ref(null)
-const adjustDesc = ref('')
-const adjusting = ref(false)
+// Agents Token
+const tokenMode = ref('add')
+const tokenAmount = ref(null)
+const tokenDesc = ref('')
+const tokenSaving = ref(false)
 
-// Долларовый баланс
-const balanceUser = ref(null)
+// AI Баланс
+const balanceMode = ref('add')
 const balanceAmount = ref(null)
-const balanceAdding = ref(false)
-
-const energyPercent = computed(() => {
-  if (!energyData.value) return 0
-  return Math.min(100, Math.round((energyData.value.energy_left / energyData.value.energy_per_week) * 100))
-})
+const balanceSaving = ref(false)
 
 onMounted(async () => {
   await load()
@@ -290,34 +294,58 @@ async function load() {
   }
 }
 
-function openEdit(user) {
-  editUser.value = user
-  editForm.value = { name: user.name, is_admin: user.is_admin }
-}
-
-async function saveUser() {
+async function openProfile(user) {
+  profileUser.value = user
+  profileForm.value = { name: user.name, is_admin: user.is_admin }
+  tariffForm.value = { tariff_plan_id: '', add_tokens: 0 }
+  tokenMode.value = 'add'
+  tokenAmount.value = null
+  tokenDesc.value = ''
+  balanceMode.value = 'add'
+  balanceAmount.value = null
+  profileData.value = null
+  profileLoading.value = true
   try {
-    const res = await adminApi.updateUser(editUser.value.id, editForm.value)
-    const idx = users.value.findIndex((u) => u.id === editUser.value.id)
-    if (idx !== -1) users.value[idx] = res.data
-    editUser.value = null
-    toast.success('Пользователь обновлён')
-  } catch (e) {
-    toast.error(e.response?.data?.detail || 'Ошибка')
+    const res = await adminApi.getUserEnergy(user.id)
+    profileData.value = res.data
+  } catch {
+    toast.error('Не удалось загрузить данные пользователя')
+  } finally {
+    profileLoading.value = false
   }
 }
 
-function openTariff(user) {
-  tariffUser.value = user
-  tariffForm.value = { tariff_plan_id: '', add_tokens: 0 }
+function closeProfile() {
+  profileUser.value = null
+  profileData.value = null
+}
+
+async function saveProfile() {
+  profileSaving.value = true
+  try {
+    const res = await adminApi.updateUser(profileUser.value.id, profileForm.value)
+    const idx = users.value.findIndex((u) => u.id === profileUser.value.id)
+    if (idx !== -1) users.value[idx] = res.data
+    profileUser.value = { ...profileUser.value, ...profileForm.value }
+    toast.success('Профиль сохранён')
+  } catch (e) {
+    toast.error(e.response?.data?.detail || 'Ошибка')
+  } finally {
+    profileSaving.value = false
+  }
 }
 
 async function applyTariff() {
   tariffSaving.value = true
   try {
-    await adminApi.setUserTariff(tariffUser.value.id, tariffForm.value)
+    await adminApi.setUserTariff(profileUser.value.id, tariffForm.value)
     toast.success('Тариф применён')
-    tariffUser.value = null
+    tariffForm.value = { tariff_plan_id: '', add_tokens: 0 }
+    // Обновить tokens_left если были добавлены токены
+    if (profileData.value && tariffForm.value.add_tokens) {
+      profileData.value.tokens_left += tariffForm.value.add_tokens
+    }
+    await refreshData()
   } catch (e) {
     toast.error(e.response?.data?.detail || 'Ошибка')
   } finally {
@@ -325,59 +353,50 @@ async function applyTariff() {
   }
 }
 
-async function openEnergy(user) {
-  energyUser.value = user
-  energyData.value = null
-  adjustAmount.value = null
-  adjustDesc.value = ''
-  adjustMode.value = 'add'
+async function applyTokens() {
+  if (!tokenAmount.value) return
+  tokenSaving.value = true
   try {
-    const res = await adminApi.getUserEnergy(user.id)
-    energyData.value = res.data
-  } catch (e) {
-    toast.error('Не удалось загрузить баланс')
-  }
-}
-
-async function applyAdjust() {
-  if (!adjustAmount.value) return
-  adjusting.value = true
-  try {
-    const amount = adjustMode.value === 'add' ? Math.abs(adjustAmount.value) : -Math.abs(adjustAmount.value)
-    const res = await adminApi.adjustUserEnergy(energyUser.value.id, {
+    const amount = tokenMode.value === 'add' ? Math.abs(tokenAmount.value) : -Math.abs(tokenAmount.value)
+    await adminApi.adjustUserTokens(profileUser.value.id, {
       amount,
-      description: adjustDesc.value,
+      description: tokenDesc.value,
     })
-    energyData.value = res.data
-    adjustAmount.value = null
-    adjustDesc.value = ''
-    toast.success(`Баланс обновлён: ${amount > 0 ? '+' : ''}${amount} токенов`)
+    toast.success(`Токены обновлены: ${amount > 0 ? '+' : ''}${amount}`)
+    tokenAmount.value = null
+    tokenDesc.value = ''
+    await refreshData()
   } catch (e) {
     toast.error(e.response?.data?.detail || 'Ошибка')
   } finally {
-    adjusting.value = false
+    tokenSaving.value = false
   }
-}
-
-function openBalance(user) {
-  balanceUser.value = user
-  balanceAmount.value = null
 }
 
 async function applyBalance() {
   if (!balanceAmount.value) return
-  balanceAdding.value = true
+  balanceSaving.value = true
   try {
-    const res = await adminApi.adjustUserBalance(balanceUser.value.id, { amount: balanceAmount.value, description: 'Пополнение администратором' })
-    balanceUser.value._balance_usd = res.data.balance_usd
+    const amount = balanceMode.value === 'add' ? Math.abs(balanceAmount.value) : -Math.abs(balanceAmount.value)
+    const res = await adminApi.adjustUserBalance(profileUser.value.id, {
+      amount,
+      description: balanceMode.value === 'add' ? 'Пополнение администратором' : 'Списание администратором',
+    })
+    if (profileData.value) profileData.value.balance_usd = res.data.balance_usd
+    toast.success('Баланс обновлён')
     balanceAmount.value = null
-    toast.success(`Начислено ${balanceAmount.value} центов`)
-    balanceUser.value = null
   } catch (e) {
     toast.error(e.response?.data?.detail || 'Ошибка')
   } finally {
-    balanceAdding.value = false
+    balanceSaving.value = false
   }
+}
+
+async function refreshData() {
+  try {
+    const res = await adminApi.getUserEnergy(profileUser.value.id)
+    profileData.value = res.data
+  } catch {}
 }
 
 function formatDate(d) {

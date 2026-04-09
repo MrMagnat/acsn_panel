@@ -43,6 +43,8 @@ class EnergyTransactionResponse(BaseModel):
 class UserEnergyResponse(BaseModel):
     energy_left: int
     energy_per_week: int
+    tokens_left: int
+    balance_usd: int
     transactions: list[EnergyTransactionResponse]
 
 
@@ -195,6 +197,8 @@ async def get_user_energy(
     return UserEnergyResponse(
         energy_left=subscription.energy_left,
         energy_per_week=subscription.energy_per_week,
+        tokens_left=subscription.tokens_left,
+        balance_usd=subscription.balance_usd,
         transactions=txs.scalars().all(),
     )
 
@@ -232,6 +236,8 @@ async def adjust_user_energy(
     return UserEnergyResponse(
         energy_left=subscription.energy_left,
         energy_per_week=subscription.energy_per_week,
+        tokens_left=subscription.tokens_left,
+        balance_usd=subscription.balance_usd,
         transactions=txs.scalars().all(),
     )
 
