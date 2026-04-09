@@ -20,6 +20,9 @@
         <RouterLink to="/cabinet/knowledge-base" class="nav-link" active-class="nav-link--active">
           <span>🗃️</span> База знаний
         </RouterLink>
+        <RouterLink to="/cabinet/subscription" class="nav-link" active-class="nav-link--active">
+          <span>💎</span> Подписка
+        </RouterLink>
         <template v-if="auth.user?.is_admin">
           <div class="border-t border-gray-100 my-2"></div>
           <RouterLink to="/admin" class="nav-link text-purple-600" active-class="nav-link--active">
@@ -28,13 +31,31 @@
         </template>
       </nav>
 
-      <!-- Энергия аккаунта -->
+      <!-- Баланс аккаунта -->
       <div v-if="subStore.data" id="user-energy" class="px-4 py-3 border-t border-gray-100">
-        <div v-if="subStore.data.plan_name" class="text-xs text-purple-600 font-medium mb-2">
-          💎 {{ subStore.data.plan_name }}
-        </div>
+        <!-- Тариф -->
+        <RouterLink to="/cabinet/subscription" class="block mb-2 text-xs text-primary-600 font-medium hover:underline">
+          💎 {{ subStore.planName }}
+        </RouterLink>
+
+        <!-- Собственные токены (если есть тарифный план) -->
+        <template v-if="subStore.tokensPerMonth > 0">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs text-gray-500">🪙 Мои токены</span>
+            <span class="text-xs font-medium text-gray-700">{{ subStore.tokensLeft.toLocaleString('ru') }}</span>
+          </div>
+          <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+            <div
+              class="h-full rounded-full transition-all bg-purple-400"
+              :class="subStore.tokensPercent > 20 ? 'bg-purple-400' : 'bg-red-400'"
+              :style="{ width: subStore.tokensPercent + '%' }"
+            ></div>
+          </div>
+        </template>
+
+        <!-- ASCN энергия -->
         <div class="flex justify-between items-center mb-1">
-          <span class="text-xs text-gray-500">⚡ Токены</span>
+          <span class="text-xs text-gray-500">⚡ ASCN</span>
           <span class="text-xs font-medium text-gray-700">{{ subStore.energyLeft }} / {{ subStore.energyPerWeek }}</span>
         </div>
         <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -44,8 +65,7 @@
             :style="{ width: subStore.energyPercent + '%' }"
           ></div>
         </div>
-        <div class="text-xs text-gray-400 mt-1">Обновляется раз в неделю</div>
-        <!-- Долларовый баланс (AI-токены) -->
+        <!-- AI-баланс -->
         <div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
           <span class="text-xs text-gray-500">🤖 AI баланс</span>
           <span class="text-xs font-medium" :class="subStore.balanceUsd > 0 ? 'text-green-600' : 'text-red-400'">

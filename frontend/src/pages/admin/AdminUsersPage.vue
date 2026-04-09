@@ -59,7 +59,8 @@
             <td class="px-4 py-3">
               <div class="flex gap-2">
                 <button class="text-xs text-primary-600 hover:underline" @click="openEdit(user)">Изменить</button>
-                <button class="text-xs text-yellow-600 hover:underline" @click="openEnergy(user)">⚡ Токены</button>
+                <button class="text-xs text-purple-600 hover:underline" @click="openTariff(user)">💎 Тариф</button>
+                <button class="text-xs text-yellow-600 hover:underline" @click="openEnergy(user)">⚡ ASCN</button>
                 <button class="text-xs text-green-600 hover:underline" @click="openBalance(user)">💰 $</button>
               </div>
             </td>
@@ -103,6 +104,34 @@
             <button class="btn-secondary flex-1" @click="balanceUser = null">Отмена</button>
             <button class="btn-primary flex-1" :disabled="!balanceAmount || balanceAdding" @click="applyBalance">
               {{ balanceAdding ? '...' : 'Начислить' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модал назначения тарифа -->
+    <div v-if="tariffUser" class="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4" @click.self="tariffUser = null">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+        <h2 class="font-semibold mb-1">💎 Тарифный план: {{ tariffUser.name }}</h2>
+        <p class="text-xs text-gray-400 mb-4">{{ tariffUser.email }}</p>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Тариф</label>
+            <select v-model="tariffForm.tariff_plan_id" class="input text-sm">
+              <option value="">— без тарифа —</option>
+              <option v-for="p in availablePlans" :key="p.id" :value="p.id">{{ p.name }} ({{ p.slug }})</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">Добавить токены платформы</label>
+            <input v-model.number="tariffForm.add_tokens" type="number" min="0" class="input text-sm" placeholder="0" />
+            <p class="text-xs text-gray-400 mt-0.5">Будут добавлены к текущему балансу</p>
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button class="btn-secondary flex-1 text-sm" @click="tariffUser = null">Отмена</button>
+            <button class="btn-primary flex-1 text-sm" :disabled="tariffSaving" @click="applyTariff">
+              {{ tariffSaving ? '...' : 'Применить' }}
             </button>
           </div>
         </div>
@@ -219,6 +248,12 @@ const filterPlan = ref('')
 const editUser = ref(null)
 const editForm = ref({ name: '', is_admin: false })
 
+// Тариф
+const tariffUser = ref(null)
+const tariffForm = ref({ tariff_plan_id: '', add_tokens: 0 })
+const tariffSaving = ref(false)
+const availablePlans = ref([])
+
 // Энергия
 const energyUser = ref(null)
 const energyData = ref(null)
@@ -237,7 +272,13 @@ const energyPercent = computed(() => {
   return Math.min(100, Math.round((energyData.value.energy_left / energyData.value.energy_per_week) * 100))
 })
 
-onMounted(() => load())
+onMounted(async () => {
+  await load()
+  try {
+    const res = await adminApi.getTariffPlans()
+    availablePlans.value = res.data
+  } catch {}
+})
 
 async function load() {
   loading.value = true
@@ -263,6 +304,24 @@ async function saveUser() {
     toast.success('Пользователь обновлён')
   } catch (e) {
     toast.error(e.response?.data?.detail || 'Ошибка')
+  }
+}
+
+function openTariff(user) {
+  tariffUser.value = user
+  tariffForm.value = { tariff_plan_id: '', add_tokens: 0 }
+}
+
+async function applyTariff() {
+  tariffSaving.value = true
+  try {
+    await adminApi.setUserTariff(tariffUser.value.id, tariffForm.value)
+    toast.success('Тариф применён')
+    tariffUser.value = null
+  } catch (e) {
+    toast.error(e.response?.data?.detail || 'Ошибка')
+  } finally {
+    tariffSaving.value = false
   }
 }
 

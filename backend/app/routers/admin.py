@@ -11,6 +11,7 @@ from ..models.user import User
 from ..models.setting import Setting
 from ..routers.onboarding import DEFAULT_CONFIG
 from ..models.subscription import Subscription
+from ..models.tariff_plan import TariffPlan
 from ..models.agent import UserAgent
 from ..models.agent_tool import AgentTool
 from ..models.tool import Tool, ToolField
@@ -19,6 +20,7 @@ from ..models.energy_transaction import EnergyTransaction
 from ..schemas.admin import AdminUserResponse, AdminUserUpdate
 from ..schemas.tool import ToolCreate, ToolUpdate, ToolResponse
 from ..schemas.template_agent import TemplateAgentCreate, TemplateAgentUpdate, TemplateAgentResponse
+from ..schemas.subscription import TariffPlanPublic
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -42,6 +44,44 @@ class UserEnergyResponse(BaseModel):
     energy_left: int
     energy_per_week: int
     transactions: list[EnergyTransactionResponse]
+
+
+class TariffPlanCreate(BaseModel):
+    name: str
+    slug: str
+    description: str | None = None
+    price_rub: int = 0
+    max_agents: int = 1
+    max_tools_per_agent: int = 2
+    max_workflows: int = 1
+    tokens_per_month: int = 100
+    is_active: bool = True
+    is_default: bool = False
+    sort_order: int = 0
+
+
+class TariffPlanUpdate(BaseModel):
+    name: str | None = None
+    slug: str | None = None
+    description: str | None = None
+    price_rub: int | None = None
+    max_agents: int | None = None
+    max_tools_per_agent: int | None = None
+    max_workflows: int | None = None
+    tokens_per_month: int | None = None
+    is_active: bool | None = None
+    is_default: bool | None = None
+    sort_order: int | None = None
+
+
+class AssignTariffRequest(BaseModel):
+    tariff_plan_id: str | None = None   # None = снять тариф
+    add_tokens: int = 0                  # дополнительно добавить токенов
+
+
+class TokenAdjust(BaseModel):
+    amount: int          # >0 начислить, <0 списать
+    description: str = ""
 
 router = APIRouter(prefix="/admin", tags=["Администрирование"])
 
@@ -190,6 +230,143 @@ async def adjust_user_energy(
         energy_per_week=subscription.energy_per_week,
         transactions=txs.scalars().all(),
     )
+
+
+# ─── Тарифные планы платформы ────────────────────────────────────────────────
+
+@router.get("/tariff-plans", response_model=list[TariffPlanPublic])
+async def list_tariff_plans(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Список всех тарифных планов платформы."""
+    result = await db.execute(
+        select(TariffPlan).order_by(TariffPlan.sort_order, TariffPlan.created_at)
+    )
+    return result.scalars().all()
+
+
+@router.post("/tariff-plans", response_model=TariffPlanPublic, status_code=201)
+async def create_tariff_plan(
+    data: TariffPlanCreate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Создать тарифный план."""
+    # Проверим уникальность slug
+    existing = await db.execute(select(TariffPlan).where(TariffPlan.slug == data.slug))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"Тариф со slug '{data.slug}' уже существует")
+
+    # Если is_default=True — снимаем флаг у остальных
+    if data.is_default:
+        await db.execute(
+            select(TariffPlan).where(TariffPlan.is_default == True)
+        )
+        all_defaults = (await db.execute(select(TariffPlan).where(TariffPlan.is_default == True))).scalars().all()
+        for tp in all_defaults:
+            tp.is_default = False
+
+    plan = TariffPlan(**data.model_dump())
+    db.add(plan)
+    await db.flush()
+    return plan
+
+
+@router.put("/tariff-plans/{plan_id}", response_model=TariffPlanPublic)
+async def update_tariff_plan(
+    plan_id: str,
+    data: TariffPlanUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Обновить тарифный план."""
+    result = await db.execute(select(TariffPlan).where(TariffPlan.id == plan_id))
+    plan = result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Тариф не найден")
+
+    # Проверим уникальность нового slug если меняется
+    if data.slug and data.slug != plan.slug:
+        existing = await db.execute(select(TariffPlan).where(TariffPlan.slug == data.slug))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"Тариф со slug '{data.slug}' уже существует")
+
+    # Если is_default=True — снимаем флаг у остальных
+    if data.is_default:
+        all_defaults = (await db.execute(select(TariffPlan).where(TariffPlan.is_default == True, TariffPlan.id != plan_id))).scalars().all()
+        for tp in all_defaults:
+            tp.is_default = False
+
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(plan, field, value)
+
+    await db.flush()
+    return plan
+
+
+@router.delete("/tariff-plans/{plan_id}", status_code=204)
+async def delete_tariff_plan(
+    plan_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Удалить тарифный план."""
+    result = await db.execute(select(TariffPlan).where(TariffPlan.id == plan_id))
+    plan = result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Тариф не найден")
+    await db.delete(plan)
+
+
+@router.post("/users/{user_id}/set-tariff")
+async def set_user_tariff(
+    user_id: str,
+    data: AssignTariffRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Назначить тарифный план пользователю (и опционально добавить токены)."""
+    sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
+    sub = sub_result.scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Подписка не найдена")
+
+    if data.tariff_plan_id:
+        plan_result = await db.execute(select(TariffPlan).where(TariffPlan.id == data.tariff_plan_id))
+        plan = plan_result.scalar_one_or_none()
+        if not plan:
+            raise HTTPException(status_code=404, detail="Тарифный план не найден")
+        sub.tariff_plan_id = plan.id
+        sub.tokens_per_month = plan.tokens_per_month
+        sub.max_agents = plan.max_agents
+        sub.max_tools_per_agent = plan.max_tools_per_agent
+    else:
+        sub.tariff_plan_id = None
+
+    if data.add_tokens:
+        sub.tokens_left = max(0, sub.tokens_left + data.add_tokens)
+
+    await db.flush()
+    return {"ok": True, "tokens_left": sub.tokens_left, "tariff_plan_id": sub.tariff_plan_id}
+
+
+@router.post("/users/{user_id}/tokens")
+async def adjust_user_tokens(
+    user_id: str,
+    data: TokenAdjust,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Начислить или списать собственные токены платформы пользователю."""
+    sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
+    sub = sub_result.scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Подписка не найдена")
+
+    sub.tokens_left = max(0, sub.tokens_left + data.amount)
+    await db.flush()
+    return {"tokens_left": sub.tokens_left}
 
 
 # ─── ASCN конфиг (ключ + модели для перепродажи) ─────────────────────────────

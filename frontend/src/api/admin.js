@@ -17,7 +17,15 @@ export const adminApi = {
   adjustUserEnergy: (userId, data) => http.post(`/admin/users/${userId}/energy`, data),
   adjustUserBalance: (userId, data) => http.post(`/admin/users/${userId}/balance-usd`, data),
 
-  // Тарифы
+  // Тарифные планы платформы
+  getTariffPlans: () => http.get('/admin/tariff-plans'),
+  createTariffPlan: (data) => http.post('/admin/tariff-plans', data),
+  updateTariffPlan: (id, data) => http.put(`/admin/tariff-plans/${id}`, data),
+  deleteTariffPlan: (id) => http.delete(`/admin/tariff-plans/${id}`),
+  setUserTariff: (userId, data) => http.post(`/admin/users/${userId}/set-tariff`, data),
+  adjustUserTokens: (userId, data) => http.post(`/admin/users/${userId}/tokens`, data),
+
+  // ASCN маппинг
   getAscnSlugs: () => http.get('/admin/ascn-slugs'),
   getTariffMappings: () => http.get('/admin/tariff-mappings'),
   saveTariffMappings: (data) => http.put('/admin/tariff-mappings', data),

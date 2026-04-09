@@ -12,6 +12,7 @@ from fastapi import HTTPException, status
 
 from ..models.user import User
 from ..models.subscription import Subscription
+from ..models.tariff_plan import TariffPlan
 from ..models.setting import Setting
 from ..core.security import create_access_token, create_refresh_token
 from ..schemas.auth import TokenResponse
@@ -61,7 +62,7 @@ async def _sync_subscription(user: User, ascn_token: str, db: AsyncSession) -> N
         plan_name = tariff.get("name", slug)
         credits = tariff.get("nocode_credits_count", 0) or 0
 
-        # Ищем лимиты в настройках тарифов
+        # Ищем маппинг ASCN slug → локальный тариф
         mappings = await _get_tariff_mappings(db)
         mapping = next((m for m in mappings if m["slug"] == slug), None)
         if not mapping:
@@ -81,6 +82,17 @@ async def _sync_subscription(user: User, ascn_token: str, db: AsyncSession) -> N
         sub.energy_per_week = credits
         sub.max_agents = mapping.get("max_agents", sub.max_agents)
         sub.max_tools_per_agent = mapping.get("max_tools_per_agent", sub.max_tools_per_agent)
+
+        # Привязываем локальный TariffPlan если задан local_plan_slug в маппинге
+        local_slug = mapping.get("local_plan_slug")
+        if local_slug:
+            plan_result = await db.execute(select(TariffPlan).where(TariffPlan.slug == local_slug, TariffPlan.is_active == True))
+            local_plan = plan_result.scalar_one_or_none()
+            if local_plan and sub.tariff_plan_id != local_plan.id:
+                sub.tariff_plan_id = local_plan.id
+                sub.tokens_per_month = local_plan.tokens_per_month
+                # Пополняем токены только при смене тарифа
+                sub.tokens_left = local_plan.tokens_per_month
 
     except Exception:
         pass  # Не ломаем логин если ASCN недоступен

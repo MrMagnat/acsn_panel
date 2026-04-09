@@ -20,6 +20,7 @@ const routes = [
       { path: 'history', name: 'RunHistory', component: () => import('@/pages/cabinet/RunHistoryPage.vue') },
       { path: 'knowledge-base', name: 'KnowledgeBase', component: () => import('@/pages/cabinet/KnowledgeBasePage.vue') },
       { path: 'knowledge-base/:id', name: 'KnowledgeBaseDetail', component: () => import('@/pages/cabinet/KnowledgeBaseDetailPage.vue') },
+      { path: 'subscription', name: 'Subscription', component: () => import('@/pages/cabinet/SubscriptionPage.vue') },
     ],
   },
 

@@ -1,4 +1,5 @@
 from .user import User
+from .tariff_plan import TariffPlan
 from .subscription import Subscription
 from .agent import UserAgent
 from .tool import Tool, ToolField
@@ -10,7 +11,7 @@ from .energy_transaction import EnergyTransaction
 from .tool_run_log import ToolRunLog
 
 __all__ = [
-    "User", "Subscription", "UserAgent",
+    "User", "TariffPlan", "Subscription", "UserAgent",
     "Tool", "ToolField", "AgentTool",
     "TemplateAgent", "TemplateAgentTool",
     "ChatMessage", "AutoTrigger", "EnergyTransaction", "ToolRunLog",
