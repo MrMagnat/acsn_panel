@@ -544,7 +544,7 @@ def _build_tool_definitions(agent_tools: list) -> list[dict]:
             description = field.hint or field.field_name
             if has_value:
                 current = configured_values[field.field_name]
-                description += f' (сейчас: "{current[:60]}"; можно переопределить)'
+                description += f' (сейчас: "{str(current)[:60]}"; можно переопределить)'
             properties[field.field_name] = {
                 "type": "string",
                 "description": description,
