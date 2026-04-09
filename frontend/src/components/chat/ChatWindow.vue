@@ -110,12 +110,8 @@
       </div>
     </div>
 
-    <!-- Энергия -->
-    <div v-if="lastEnergySpent" class="px-4 py-1 text-xs text-gray-400 text-right border-t border-gray-50">
-      Потрачено ⚡{{ lastEnergySpent }}, осталось ⚡{{ currentEnergyLeft }}
-    </div>
 
-    <!-- Быстрые подсказки -->
+<!-- Быстрые подсказки -->
     <div v-if="props.suggestions?.length" class="px-4 pt-2 pb-1 flex flex-wrap gap-1.5">
       <button
         v-for="s in props.suggestions"
