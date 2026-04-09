@@ -1,14 +1,14 @@
 """tariff_plans: own platform tariffs + subscription tokens
 
-Revision ID: 017
-Revises: 016
+Revision ID: 019
+Revises: 018
 Create Date: 2026-04-09
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = '017'
-down_revision = '016'
+revision = '019'
+down_revision = '018'
 branch_labels = None
 depends_on = None
 
