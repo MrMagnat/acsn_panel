@@ -10,7 +10,8 @@ class TariffPlan(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    price_rub: Mapped[int] = mapped_column(Integer, default=0)          # в копейках, 0 = бесплатно
+    price_usd: Mapped[int] = mapped_column(Integer, default=0)           # в центах, 0 = бесплатно
+    balance_usd_per_month: Mapped[int] = mapped_column(Integer, default=0)  # AI-баланс в центах при назначении
     max_agents: Mapped[int] = mapped_column(Integer, default=1)
     max_tools_per_agent: Mapped[int] = mapped_column(Integer, default=2)
     max_workflows: Mapped[int] = mapped_column(Integer, default=1)

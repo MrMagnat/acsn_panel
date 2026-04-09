@@ -41,7 +41,7 @@
         <!-- Собственные токены (если есть тарифный план) -->
         <template v-if="subStore.tokensPerMonth > 0">
           <div class="flex justify-between items-center mb-1">
-            <span class="text-xs text-gray-500">🪙 Мои токены</span>
+            <span class="text-xs text-gray-500">🪙 Agents Token</span>
             <span class="text-xs font-medium text-gray-700">{{ subStore.tokensLeft.toLocaleString('ru') }}</span>
           </div>
           <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">

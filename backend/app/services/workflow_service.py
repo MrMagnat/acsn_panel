@@ -320,22 +320,22 @@ async def run_workflow(
             if not agent_tool:
                 raise ValueError(f"Инструмент {tool_id} не добавлен агенту")
 
-            # Энергия
+            # Agents Token
             energy_cost = agent_tool.tool.energy_cost
             sub_result = await db.execute(
                 select(Subscription).where(Subscription.user_id == user_id)
             )
             subscription = sub_result.scalar_one_or_none()
-            if not subscription or subscription.energy_left < energy_cost:
-                raise ValueError(f"Недостаточно токенов для '{agent_tool.tool.name}'")
+            if not subscription or subscription.tokens_left < energy_cost:
+                raise ValueError(f"Недостаточно Agents Token для '{agent_tool.tool.name}'")
 
             upd = await db.execute(
                 update(Subscription)
-                .where(Subscription.id == subscription.id, Subscription.energy_left >= energy_cost)
-                .values(energy_left=Subscription.energy_left - energy_cost)
+                .where(Subscription.id == subscription.id, Subscription.tokens_left >= energy_cost)
+                .values(tokens_left=Subscription.tokens_left - energy_cost)
             )
             if upd.rowcount == 0:
-                raise ValueError("Недостаточно токенов (race condition)")
+                raise ValueError("Недостаточно Agents Token (race condition)")
 
             db.add(EnergyTransaction(
                 user_id=user_id,

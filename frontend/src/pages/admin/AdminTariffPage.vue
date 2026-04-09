@@ -54,8 +54,9 @@
               <span>🔧 {{ plan.max_tools_per_agent }} инстр./аг.</span>
               <span>⟨⟩ {{ plan.max_workflows }} вф.</span>
               <span>🪙 {{ plan.tokens_per_month.toLocaleString('ru') }} ток./мес</span>
-              <span v-if="plan.price_rub === 0" class="text-green-600">Бесплатно</span>
-              <span v-else class="text-gray-700 font-medium">{{ (plan.price_rub / 100).toFixed(0) }} ₽/мес</span>
+              <span v-if="plan.price_usd === 0" class="text-green-600">Бесплатно</span>
+              <span v-else class="text-gray-700 font-medium">${{ (plan.price_usd / 100).toFixed(2) }}/мес</span>
+              <span v-if="plan.balance_usd_per_month > 0" class="text-blue-600">· ${{ (plan.balance_usd_per_month / 100).toFixed(2) }} AI</span>
             </div>
           </div>
 
@@ -168,14 +169,19 @@
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="text-xs font-medium text-gray-600 mb-1 block">Цена (руб/мес)</label>
-              <input v-model.number="planForm.price_rub" type="number" min="0" class="input text-sm" placeholder="0" />
-              <p class="text-xs text-gray-400 mt-0.5">0 = бесплатно</p>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Цена (центы, $1 = 100)</label>
+              <input v-model.number="planForm.price_usd" type="number" min="0" class="input text-sm" placeholder="0" />
+              <p class="text-xs text-gray-400 mt-0.5">0 = бесплатно · 999 = $9.99</p>
             </div>
             <div>
-              <label class="text-xs font-medium text-gray-600 mb-1 block">Токенов в месяц</label>
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Agents Token / месяц</label>
               <input v-model.number="planForm.tokens_per_month" type="number" min="0" class="input text-sm" />
             </div>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">AI баланс при назначении (центы, $1 = 100)</label>
+            <input v-model.number="planForm.balance_usd_per_month" type="number" min="0" class="input text-sm" placeholder="0" />
+            <p class="text-xs text-gray-400 mt-0.5">Добавляется к AI балансу пользователя при назначении тарифа</p>
           </div>
           <div class="grid grid-cols-3 gap-3">
             <div>
@@ -244,7 +250,8 @@ const PLAN_DEFAULTS = {
   name: '',
   slug: '',
   description: '',
-  price_rub: 0,
+  price_usd: 0,
+  balance_usd_per_month: 0,
   max_agents: 3,
   max_tools_per_agent: 3,
   max_workflows: 3,
@@ -279,7 +286,8 @@ function openEditModal(plan) {
     name: plan.name,
     slug: plan.slug,
     description: plan.description || '',
-    price_rub: plan.price_rub,
+    price_usd: plan.price_usd,
+    balance_usd_per_month: plan.balance_usd_per_month || 0,
     max_agents: plan.max_agents,
     max_tools_per_agent: plan.max_tools_per_agent,
     max_workflows: plan.max_workflows,

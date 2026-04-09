@@ -65,14 +65,13 @@ async def send_message(
     if not agent.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Агент неактивен")
 
-    # Проверяем наличие энергии (минимум energy_per_chat)
-    # Загружаем подписку пользователя для проверки энергии
+    # Проверяем наличие Agents Token
     sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
     subscription = sub_result.scalar_one_or_none()
-    if not subscription or subscription.energy_left < agent.energy_per_chat:
+    if not subscription or subscription.tokens_left < agent.energy_per_chat:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="Недостаточно энергии. Энергия обновляется каждую неделю.",
+            detail="Недостаточно Agents Token.",
         )
 
     # Сохраняем сообщение пользователя
@@ -282,16 +281,16 @@ async def send_message(
 
 
 async def _spend_energy(subscription: Subscription, amount: int, db: AsyncSession) -> None:
-    """Атомарно списываем энергию с аккаунта, не допуская ухода в минус."""
+    """Атомарно списываем Agents Token, не допуская ухода в минус."""
     result = await db.execute(
         update(Subscription)
-        .where(Subscription.id == subscription.id, Subscription.energy_left >= amount)
-        .values(energy_left=Subscription.energy_left - amount)
-        .returning(Subscription.energy_left)
+        .where(Subscription.id == subscription.id, Subscription.tokens_left >= amount)
+        .values(tokens_left=Subscription.tokens_left - amount)
+        .returning(Subscription.tokens_left)
     )
     row = result.fetchone()
     if row:
-        subscription.energy_left = row[0]
+        subscription.tokens_left = row[0]
 
 
 async def _log_transaction(

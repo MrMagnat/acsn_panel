@@ -7,7 +7,8 @@ class TariffPlanPublic(BaseModel):
     name: str
     slug: str
     description: str | None = None
-    price_rub: int = 0
+    price_usd: int = 0
+    balance_usd_per_month: int = 0
     max_agents: int
     max_tools_per_agent: int
     max_workflows: int

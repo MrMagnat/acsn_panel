@@ -50,7 +50,8 @@ class TariffPlanCreate(BaseModel):
     name: str
     slug: str
     description: str | None = None
-    price_rub: int = 0
+    price_usd: int = 0
+    balance_usd_per_month: int = 0
     max_agents: int = 1
     max_tools_per_agent: int = 2
     max_workflows: int = 1
@@ -64,7 +65,8 @@ class TariffPlanUpdate(BaseModel):
     name: str | None = None
     slug: str | None = None
     description: str | None = None
-    price_rub: int | None = None
+    price_usd: int | None = None
+    balance_usd_per_month: int | None = None
     max_agents: int | None = None
     max_tools_per_agent: int | None = None
     max_workflows: int | None = None
@@ -341,6 +343,9 @@ async def set_user_tariff(
         sub.tokens_per_month = plan.tokens_per_month
         sub.max_agents = plan.max_agents
         sub.max_tools_per_agent = plan.max_tools_per_agent
+        # Начисляем AI-баланс из тарифа
+        if plan.balance_usd_per_month > 0:
+            sub.balance_usd = max(0, sub.balance_usd + plan.balance_usd_per_month)
     else:
         sub.tariff_plan_id = None
 

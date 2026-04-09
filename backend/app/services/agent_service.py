@@ -295,23 +295,23 @@ async def run_tool_manually(agent_id: str, user_id: str, tool_id: str, db: Async
     tool = agent_tool.tool
     energy_cost = tool.energy_cost
 
-    # Проверяем и списываем энергию с аккаунта
+    # Проверяем и списываем Agents Token
     sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
     subscription = sub_result.scalar_one_or_none()
-    if not subscription or subscription.energy_left < energy_cost:
+    if not subscription or subscription.tokens_left < energy_cost:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="Недостаточно энергии для запуска инструмента",
+            detail="Недостаточно Agents Token для запуска инструмента",
         )
 
     upd = await db.execute(
         sa_update(Subscription)
-        .where(Subscription.id == subscription.id, Subscription.energy_left >= energy_cost)
-        .values(energy_left=Subscription.energy_left - energy_cost)
-        .returning(Subscription.energy_left)
+        .where(Subscription.id == subscription.id, Subscription.tokens_left >= energy_cost)
+        .values(tokens_left=Subscription.tokens_left - energy_cost)
+        .returning(Subscription.tokens_left)
     )
     row = upd.fetchone()
-    energy_left_after = row[0] if row else subscription.energy_left
+    energy_left_after = row[0] if row else subscription.tokens_left
 
     db.add(EnergyTransaction(
         user_id=user_id,
@@ -413,20 +413,20 @@ async def run_tool_standalone(user_id: str, tool_id: str, field_values: dict, db
 
     sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
     subscription = sub_result.scalar_one_or_none()
-    if not subscription or subscription.energy_left < energy_cost:
+    if not subscription or subscription.tokens_left < energy_cost:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="Недостаточно энергии для запуска инструмента",
+            detail="Недостаточно Agents Token для запуска инструмента",
         )
 
     upd = await db.execute(
         sa_update(Subscription)
-        .where(Subscription.id == subscription.id, Subscription.energy_left >= energy_cost)
-        .values(energy_left=Subscription.energy_left - energy_cost)
-        .returning(Subscription.energy_left)
+        .where(Subscription.id == subscription.id, Subscription.tokens_left >= energy_cost)
+        .values(tokens_left=Subscription.tokens_left - energy_cost)
+        .returning(Subscription.tokens_left)
     )
     row = upd.fetchone()
-    energy_left_after = row[0] if row else subscription.energy_left
+    energy_left_after = row[0] if row else subscription.tokens_left
 
     db.add(EnergyTransaction(
         user_id=user_id,

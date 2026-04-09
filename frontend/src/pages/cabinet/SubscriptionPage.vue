@@ -17,11 +17,11 @@
             <div v-if="sub?.tariff_plan?.description" class="text-sm text-gray-500 mt-1">
               {{ sub.tariff_plan.description }}
             </div>
-            <div v-if="sub?.tariff_plan?.price_rub === 0" class="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-50 text-green-700 border border-green-200">
+            <div v-if="sub?.tariff_plan?.price_usd === 0" class="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-50 text-green-700 border border-green-200">
               Бесплатно
             </div>
-            <div v-else-if="sub?.tariff_plan?.price_rub" class="mt-1 text-sm text-gray-600">
-              {{ (sub.tariff_plan.price_rub / 100).toFixed(0) }} ₽ / месяц
+            <div v-else-if="sub?.tariff_plan?.price_usd" class="mt-1 text-sm text-gray-600">
+              ${{ (sub.tariff_plan.price_usd / 100).toFixed(2) }} / месяц
             </div>
           </div>
           <div class="shrink-0 text-right">
@@ -63,8 +63,8 @@
         <!-- Собственные токены -->
         <div class="card p-5">
           <div class="flex items-center justify-between mb-3">
-            <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Токены платформы</div>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">собственные</span>
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Agents Token</div>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">platform</span>
           </div>
           <div class="flex items-baseline gap-2 mb-2">
             <span class="text-3xl font-bold text-gray-900">{{ subStore.tokensLeft.toLocaleString('ru') }}</span>
@@ -136,11 +136,12 @@
               <div>👤 {{ plan.max_agents }} агентов</div>
               <div>🔧 {{ plan.max_tools_per_agent }} инструм./агент</div>
               <div>⟨⟩ {{ plan.max_workflows }} воркфлоу</div>
-              <div>🪙 {{ plan.tokens_per_month.toLocaleString('ru') }} токенов/мес</div>
+              <div>🪙 {{ plan.tokens_per_month.toLocaleString('ru') }} Agents Token/мес</div>
+              <div v-if="plan.balance_usd_per_month > 0">🤖 ${{ (plan.balance_usd_per_month / 100).toFixed(2) }} AI баланс/мес</div>
             </div>
             <div class="mt-3 pt-3 border-t border-gray-100">
-              <div v-if="plan.price_rub === 0" class="text-sm font-semibold text-green-700">Бесплатно</div>
-              <div v-else class="text-sm font-semibold text-gray-900">{{ (plan.price_rub / 100).toFixed(0) }} ₽/мес</div>
+              <div v-if="plan.price_usd === 0" class="text-sm font-semibold text-green-700">Бесплатно</div>
+              <div v-else class="text-sm font-semibold text-gray-900">${{ (plan.price_usd / 100).toFixed(2) }}/мес</div>
             </div>
           </div>
         </div>
