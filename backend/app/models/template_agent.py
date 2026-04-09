@@ -1,5 +1,6 @@
 from sqlalchemy import String, Boolean, Integer, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import JSON
 from .base import Base, gen_uuid
 
 
@@ -17,6 +18,8 @@ class TemplateAgent(Base):
     energy_per_chat: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     prompt_suggestions: Mapped[str] = mapped_column(Text, default="[]")
+    # Скиллы из каталога, которые предустанавливаются агенту при создании из шаблона
+    skill_ids: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
     template_tools: Mapped[list["TemplateAgentTool"]] = relationship("TemplateAgentTool", back_populates="template", cascade="all, delete-orphan")
 

@@ -121,6 +121,43 @@
             </div>
           </div>
 
+          <!-- Вкладка: Скиллы из каталога -->
+          <div v-else-if="activeTab === 'skills_catalog'" class="space-y-3">
+            <p class="text-xs text-gray-400">Скиллы из каталога, которые будут предустановлены агенту при создании из шаблона. Также можно управлять видимостью скилла для пользователей.</p>
+            <div v-if="!allSkills.length" class="text-center py-8 text-gray-400 text-sm">Скиллов пока нет. Создайте их в разделе «Скиллы».</div>
+            <div
+              v-for="skill in allSkills"
+              :key="skill.id"
+              class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200"
+              :class="!skill.is_active ? 'opacity-60' : ''"
+            >
+              <!-- Чекбокс: предустановить в шаблон -->
+              <input type="checkbox" :value="skill.id" v-model="form.skill_ids" class="w-4 h-4 rounded shrink-0" />
+              <span class="text-xl shrink-0">{{ skill.icon }}</span>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-sm text-gray-900">{{ skill.name }}</span>
+                  <span v-if="skill.category" class="text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded-full border border-purple-100">{{ skill.category }}</span>
+                </div>
+                <div v-if="skill.description" class="text-xs text-gray-400 truncate">{{ skill.description }}</div>
+              </div>
+              <!-- Тоггл: виден пользователям -->
+              <div class="flex items-center gap-1.5 shrink-0">
+                <span class="text-xs text-gray-400">{{ skill.is_active ? 'Виден' : 'Скрыт' }}</span>
+                <button
+                  class="relative w-9 h-5 rounded-full transition-colors shrink-0"
+                  :class="skill.is_active ? 'bg-green-400' : 'bg-gray-200'"
+                  @click="toggleSkillVisibility(skill)"
+                >
+                  <span
+                    class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                    :class="skill.is_active ? 'translate-x-4' : 'translate-x-0.5'"
+                  ></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Вкладка: Инструменты -->
           <div v-else-if="activeTab === 'tools'" class="space-y-3">
             <div
@@ -180,13 +217,14 @@ const activeTab = ref('basic')
 const tabs = [
   { key: 'basic', label: 'Основное' },
   { key: 'prompt', label: 'Промпт и скиллы' },
+  { key: 'skills_catalog', label: 'Скиллы' },
   { key: 'tools', label: 'Инструменты' },
   { key: 'energy', label: 'Энергия' },
 ]
 
 const form = ref({
   name: '', description: '', llm_url: '', llm_model: '', llm_token: '', prompt: '', skills: '',
-  is_active: true, energy_per_chat: 5, tool_ids: [], prompt_suggestions: ['', '', ''],
+  is_active: true, energy_per_chat: 5, tool_ids: [], skill_ids: [], prompt_suggestions: ['', '', ''],
 })
 
 const totalEnergy = computed(() => {
@@ -194,13 +232,17 @@ const totalEnergy = computed(() => {
   return form.value.energy_per_chat + toolsCost
 })
 
+const allSkills = ref([])
+
 onMounted(async () => {
-  const [tRes, toolsRes] = await Promise.allSettled([
+  const [tRes, toolsRes, skillsRes] = await Promise.allSettled([
     adminApi.getTemplates(),
     adminApi.getTools(),
+    adminApi.getSkills(),
   ])
   if (tRes.status === 'fulfilled') templates.value = tRes.value.data
   if (toolsRes.status === 'fulfilled') allTools.value = toolsRes.value.data
+  if (skillsRes.status === 'fulfilled') allSkills.value = skillsRes.value.data
   loading.value = false
 })
 
@@ -219,6 +261,7 @@ function selectTemplate(t) {
     is_active: t.is_active,
     energy_per_chat: t.energy_per_chat,
     tool_ids: t.tools?.map((tool) => tool.id) ?? [],
+    skill_ids: t.skill_ids ?? [],
     prompt_suggestions: [s[0] ?? '', s[1] ?? '', s[2] ?? ''],
   }
 }
@@ -226,7 +269,7 @@ function selectTemplate(t) {
 function openCreate() {
   selected.value = { id: null }
   activeTab.value = 'basic'
-  form.value = { name: '', description: '', llm_url: '', llm_model: '', llm_token: '', prompt: '', skills: '', is_active: true, energy_per_chat: 5, tool_ids: [], prompt_suggestions: ['', '', ''] }
+  form.value = { name: '', description: '', llm_url: '', llm_model: '', llm_token: '', prompt: '', skills: '', is_active: true, energy_per_chat: 5, tool_ids: [], skill_ids: [], prompt_suggestions: ['', '', ''] }
 }
 
 async function saveTemplate() {
@@ -269,5 +312,15 @@ function getToolName(id) {
 }
 function getToolCost(id) {
   return allTools.value.find((t) => t.id === id)?.energy_cost ?? 0
+}
+
+async function toggleSkillVisibility(skill) {
+  try {
+    const res = await adminApi.updateSkill(skill.id, { is_active: !skill.is_active })
+    const idx = allSkills.value.findIndex(s => s.id === skill.id)
+    if (idx !== -1) allSkills.value[idx] = res.data
+  } catch {
+    // тихо
+  }
 }
 </script>

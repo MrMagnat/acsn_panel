@@ -76,26 +76,33 @@
           <div class="card p-5">
             <div class="flex items-center justify-between mb-4">
               <h2 class="font-semibold text-sm text-gray-700">✨ Скиллы</h2>
-              <button class="text-xs text-primary-600 hover:underline" @click="showSkillCatalog = true">+ Добавить</button>
             </div>
-            <div v-if="!agent.agent_skills?.length" class="text-xs text-gray-400 text-center py-3">
-              Нет скиллов. Добавьте знания и поведения агенту.
-            </div>
-            <div v-else class="space-y-2">
+            <div class="grid grid-cols-1 gap-3">
               <div
                 v-for="as_ in agent.agent_skills"
                 :key="as_.id"
-                class="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-100 hover:border-gray-200"
+                class="flex items-center justify-between px-3 py-2.5 rounded-xl border border-gray-100 hover:border-gray-200 group"
               >
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="text-lg shrink-0">{{ as_.skill.icon }}</span>
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="text-xl shrink-0">{{ as_.skill.icon }}</span>
                   <div class="min-w-0">
                     <div class="text-sm font-medium text-gray-800 truncate">{{ as_.skill.name }}</div>
                     <div v-if="as_.skill.description" class="text-xs text-gray-400 truncate">{{ as_.skill.description }}</div>
                   </div>
                 </div>
-                <button class="shrink-0 text-gray-300 hover:text-red-400 transition-colors ml-2" @click="removeSkill(as_.skill_id)">✕</button>
+                <button
+                  class="shrink-0 text-gray-300 hover:text-red-400 transition-colors ml-2 opacity-0 group-hover:opacity-100"
+                  @click="removeSkill(as_.skill_id)"
+                >✕</button>
               </div>
+              <!-- Кнопка добавить — в стиле инструментов -->
+              <button
+                class="border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-purple-400 hover:bg-purple-50 transition-colors cursor-pointer text-sm text-gray-500"
+                @click="showSkillCatalog = true"
+              >
+                <span class="text-2xl">✨</span>
+                <span>Добавить скилл</span>
+              </button>
             </div>
           </div>
 

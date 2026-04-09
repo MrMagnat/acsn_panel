@@ -14,6 +14,9 @@
         <RouterLink id="nav-tools" to="/cabinet/tools" class="nav-link" active-class="nav-link--active">
           <span>🔧</span> Инструменты
         </RouterLink>
+        <RouterLink to="/cabinet/skills" class="nav-link" active-class="nav-link--active">
+          <span>✨</span> Скиллы
+        </RouterLink>
         <RouterLink id="nav-history" to="/cabinet/history" class="nav-link" active-class="nav-link--active">
           <span>📋</span> История запусков
         </RouterLink>

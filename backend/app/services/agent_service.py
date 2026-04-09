@@ -153,6 +153,11 @@ async def create_agent_from_template(user_id: str, template_id: str, db: AsyncSe
     if tool_ids:
         await _add_tools_to_agent(agent, tool_ids, subscription.max_tools_per_agent, db)
 
+    # Добавляем скиллы из шаблона
+    if template.skill_ids:
+        for skill_id in template.skill_ids:
+            db.add(AgentSkill(agent_id=agent.id, skill_id=skill_id))
+
     # Перезагружаем агента со всеми связями для корректной сериализации
     await db.flush()
     return await get_agent_by_id(agent.id, user_id, db)

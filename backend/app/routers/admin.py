@@ -539,6 +539,7 @@ async def create_template_agent(
         energy_per_chat=data.energy_per_chat,
         is_active=data.is_active,
         prompt_suggestions=_json.dumps(data.prompt_suggestions, ensure_ascii=False),
+        skill_ids=data.skill_ids,
     )
     db.add(template)
     await db.flush()
@@ -569,13 +570,15 @@ async def update_template_agent(
     template = await _get_template(template_id, db)
 
     import json as _json
-    for field, value in data.model_dump(exclude_none=True, exclude={"tool_ids", "prompt_suggestions"}).items():
+    for field, value in data.model_dump(exclude_none=True, exclude={"tool_ids", "skill_ids", "prompt_suggestions"}).items():
         setattr(template, field, value)
     if data.prompt_suggestions is not None:
         template.prompt_suggestions = _json.dumps(data.prompt_suggestions, ensure_ascii=False)
 
     if data.tool_ids is not None:
         await _sync_template_tools(template_id, data.tool_ids, db)
+    if data.skill_ids is not None:
+        template.skill_ids = data.skill_ids
 
     await db.flush()
     return _template_to_response(await _get_template(template_id, db))

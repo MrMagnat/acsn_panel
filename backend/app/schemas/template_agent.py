@@ -15,6 +15,7 @@ class TemplateAgentCreate(BaseModel):
     energy_per_chat: int = 5
     is_active: bool = True
     tool_ids: list[str] = []
+    skill_ids: list[str] = []
     prompt_suggestions: list[str] = []
 
 
@@ -29,6 +30,7 @@ class TemplateAgentUpdate(BaseModel):
     energy_per_chat: Optional[int] = None
     is_active: Optional[bool] = None
     tool_ids: Optional[list[str]] = None
+    skill_ids: Optional[list[str]] = None
     prompt_suggestions: Optional[list[str]] = None
 
 
@@ -45,6 +47,7 @@ class TemplateAgentResponse(BaseModel):
     is_active: bool
     prompt_suggestions: list[str] = []
     tools: list[ToolResponse] = []
+    skill_ids: list[str] = []
 
     @field_validator('prompt_suggestions', mode='before')
     @classmethod
