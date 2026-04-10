@@ -592,12 +592,14 @@ def _build_tool_definitions(agent_tools: list) -> list[dict]:
             if field.required and not has_value:
                 required_runtime.append(field.field_name)
 
-        # Объединяем description + trigger_hint для лучшего понимания LLM
-        full_description = f"Инструмент: {tool.name}."
+        # Только название + краткое описание — без trigger_hint
+        # trigger_hint уже есть в system prompt; в function description он мешает:
+        # LLM воспринимает "Ответь: '...'" как инструкцию говорить текстом вместо вызова функции
+        full_description = tool.name
         if tool.description:
-            full_description += f" {tool.description.strip()}"
-        if tool.trigger_hint:
-            full_description += f" Используй когда: {tool.trigger_hint.strip()}"
+            # Берём только первое предложение описания (без длинных инструкций)
+            short_desc = tool.description.strip().split("\n")[0][:200]
+            full_description += f": {short_desc}"
 
         definitions.append({
             "type": "function",
