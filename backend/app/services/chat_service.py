@@ -574,10 +574,12 @@ def _build_tool_definitions(agent_tools: list) -> list[dict]:
         required_runtime = []
 
         for field in tool.fields:
-            # Только поля с is_runtime=True видит LLM
-            if not field.is_runtime:
-                continue
             has_value = bool(configured_values.get(field.field_name))
+            # Показываем LLM поле если:
+            # - is_runtime=True (поле для динамического ввода пользователем), ИЛИ
+            # - поле обязательное и значение не сохранено (иначе инструмент никогда не вызвать)
+            if not field.is_runtime and not (field.required and not has_value):
+                continue
             description = field.hint or field.field_name
             if has_value:
                 current = configured_values[field.field_name]
