@@ -87,11 +87,12 @@ async def send_message(
     # Все инструменты агента — для системных операций (настройка, автозапуск)
     all_agent_tools = agent.agent_tools
     agent_skills = getattr(agent, 'agent_skills', [])
-    # Только настроенные — для вызова вебхуков
+    # Только настроенные — для вызова вебхуков (проверка при исполнении)
     configured_tools = [at for at in agent.agent_tools if at.is_configured]
 
-    # Строим описание инструментов в формате function calling
-    tool_definitions = _build_tool_definitions(configured_tools)
+    # В tool definitions передаём ВСЕ инструменты агента — LLM должен знать о них
+    # Иначе он не может вызвать инструмент через function call
+    tool_definitions = _build_tool_definitions(all_agent_tools)
 
     # Загружаем историю для контекста (последние 20 сообщений)
     history_result = await db.execute(
