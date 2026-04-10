@@ -638,6 +638,12 @@ async def _call_llm(
         headers["HTTP-Referer"] = "http://85.193.84.93"
         headers["X-Title"] = "ASCN AI Platform"
 
+    import logging as _logging
+    _logging.getLogger("chat_llm").info(
+        "LLM REQUEST:\n%s",
+        json.dumps(payload, ensure_ascii=False, indent=2)
+    )
+
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(llm_url, json=payload, headers=headers)
         if not response.is_success:
