@@ -92,6 +92,9 @@ async def _sync_subscription(user: User, ascn_token: str, db: AsyncSession) -> N
                 sub.tokens_per_month = local_plan.tokens_per_month
                 # Пополняем токены только при смене тарифа
                 sub.tokens_left = local_plan.tokens_per_month
+                # Начисляем AI-баланс из тарифа при смене плана
+                if local_plan.balance_usd_per_month > 0:
+                    sub.balance_usd = max(0, sub.balance_usd + local_plan.balance_usd_per_month)
 
     except Exception:
         pass  # Не ломаем логин если ASCN недоступен
