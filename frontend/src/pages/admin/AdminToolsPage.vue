@@ -76,6 +76,39 @@
           <label class="text-sm text-gray-700">Активен (доступен пользователям)</label>
         </div>
 
+        <!-- Владелец инструмента -->
+        <div>
+          <label class="label">Владелец (партнёр)</label>
+          <div class="flex gap-2">
+            <input
+              v-model="ownerSearch"
+              class="input flex-1"
+              placeholder="Поиск по email..."
+              @input="filterUsers"
+            />
+            <button
+              v-if="form.owner_user_id"
+              class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-red-500 hover:bg-red-50"
+              @click="clearOwner"
+            >✕ Убрать</button>
+          </div>
+          <div v-if="filteredUsers.length && ownerSearch" class="mt-1 border border-gray-200 rounded-lg bg-white shadow-sm max-h-36 overflow-y-auto">
+            <button
+              v-for="u in filteredUsers"
+              :key="u.id"
+              class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b border-gray-100 last:border-0"
+              @click="selectOwner(u)"
+            >
+              <span class="font-medium">{{ u.email }}</span>
+              <span class="text-gray-400 ml-2">{{ u.name }}</span>
+            </button>
+          </div>
+          <p v-if="form.owner_user_id" class="text-xs text-green-600 mt-1">
+            ✓ Владелец: {{ ownerSearch }}
+          </p>
+          <p v-else class="text-xs text-gray-400 mt-1">Если не указан — инструмент без владельца, бонусы не начисляются</p>
+        </div>
+
         <!-- Выходные данные (output_fields) -->
         <div>
           <div class="flex items-center justify-between mb-3">
@@ -203,16 +236,43 @@ const loading = ref(true)
 const saving = ref(false)
 const selected = ref(null)
 
+const allUsers = ref([])
+const ownerSearch = ref('')
+const filteredUsers = ref([])
+
 const form = ref({
   name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true,
-  energy_cost: 10, fields: [], output_fields: [],
+  energy_cost: 10, fields: [], output_fields: [], owner_user_id: null,
 })
 
 onMounted(async () => {
-  const res = await adminApi.getTools()
-  tools.value = res.data
+  const [toolsRes, usersRes] = await Promise.all([
+    adminApi.getTools(),
+    adminApi.getUsers({ limit: 500 }),
+  ])
+  tools.value = toolsRes.data
+  allUsers.value = usersRes.data?.items ?? usersRes.data ?? []
   loading.value = false
 })
+
+function filterUsers() {
+  const q = ownerSearch.value.toLowerCase()
+  filteredUsers.value = q
+    ? allUsers.value.filter(u => u.email.toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q)).slice(0, 10)
+    : []
+}
+
+function selectOwner(user) {
+  form.value.owner_user_id = user.id
+  ownerSearch.value = user.email
+  filteredUsers.value = []
+}
+
+function clearOwner() {
+  form.value.owner_user_id = null
+  ownerSearch.value = ''
+  filteredUsers.value = []
+}
 
 function selectTool(tool) {
   selected.value = tool
@@ -225,12 +285,23 @@ function selectTool(tool) {
     energy_cost: tool.energy_cost,
     fields: tool.fields?.map((f) => ({ ...f })) ?? [],
     output_fields: tool.output_fields?.map((f) => ({ ...f })) ?? [],
+    owner_user_id: tool.owner_user_id ?? null,
   }
+  // Показываем email текущего владельца
+  if (tool.owner_user_id) {
+    const owner = allUsers.value.find(u => u.id === tool.owner_user_id)
+    ownerSearch.value = owner ? owner.email : tool.owner_user_id
+  } else {
+    ownerSearch.value = ''
+  }
+  filteredUsers.value = []
 }
 
 function openCreate() {
   selected.value = { id: null }
-  form.value = { name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true, energy_cost: 10, fields: [], output_fields: [] }
+  form.value = { name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true, energy_cost: 10, fields: [], output_fields: [], owner_user_id: null }
+  ownerSearch.value = ''
+  filteredUsers.value = []
 }
 
 function addField() {
