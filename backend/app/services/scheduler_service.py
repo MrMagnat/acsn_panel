@@ -17,7 +17,25 @@ from ..models.tool import Tool
 from ..models.subscription import Subscription
 from ..models.energy_transaction import EnergyTransaction
 from ..models.tool_run_log import ToolRunLog
+from ..models.partner_transaction import PartnerTransaction
 from ..core.config import settings
+from sqlalchemy import update as _sa_update_sub
+
+
+async def _credit_partner_bonus(owner_user_id: str, from_user_id: str, tool, amount: int, db: AsyncSession) -> None:
+    await db.execute(
+        _sa_update_sub(Subscription)
+        .where(Subscription.user_id == owner_user_id)
+        .values(partner_tokens=Subscription.partner_tokens + amount)
+    )
+    db.add(PartnerTransaction(
+        user_id=owner_user_id,
+        tool_id=tool.id,
+        tool_name=tool.name,
+        from_user_id=from_user_id,
+        amount=amount,
+        description=f"Бонус за запуск инструмента «{tool.name}»",
+    ))
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +175,17 @@ async def execute_trigger(trigger_id: str, agent_id: str, tool_id: str) -> None:
                 agent_id=agent_id,
                 tool_name=agent_tool.tool.name,
             ))
+
+            # Партнёрский бонус владельцу (только для платных аккаунтов)
+            is_free = (subscription.plan or "free").lower() in ("free", "")
+            if agent_tool.tool.owner_user_id and not is_free:
+                await _credit_partner_bonus(
+                    owner_user_id=agent_tool.tool.owner_user_id,
+                    from_user_id=agent.user_id,
+                    tool=agent_tool.tool,
+                    amount=max(1, energy_cost // 10),
+                    db=db,
+                )
 
             # Создаём лог запуска
             run_log = ToolRunLog(

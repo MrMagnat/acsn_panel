@@ -14,7 +14,26 @@ from ..models.energy_transaction import EnergyTransaction
 from ..models.tool_run_log import ToolRunLog
 from ..models.trigger import AutoTrigger
 from ..models.setting import Setting
+from ..models.partner_transaction import PartnerTransaction
 from ..schemas.agent import AgentCreate, AgentUpdate, UpdateToolFields
+from sqlalchemy import update as _sa_update_sub
+
+
+async def _credit_partner_bonus(owner_user_id: str, from_user_id: str, tool, amount: int, db: AsyncSession) -> None:
+    """Начисляем партнёрский бонус владельцу инструмента (если он не Free)."""
+    await db.execute(
+        _sa_update_sub(Subscription)
+        .where(Subscription.user_id == owner_user_id)
+        .values(partner_tokens=Subscription.partner_tokens + amount)
+    )
+    db.add(PartnerTransaction(
+        user_id=owner_user_id,
+        tool_id=tool.id,
+        tool_name=tool.name,
+        from_user_id=from_user_id,
+        amount=amount,
+        description=f"Бонус за запуск инструмента «{tool.name}»",
+    ))
 
 
 async def _resolve_ascn_tokens(field_values: dict, tool_fields: list, db: AsyncSession) -> dict:
@@ -328,6 +347,17 @@ async def run_tool_manually(agent_id: str, user_id: str, tool_id: str, db: Async
         tool_name=tool.name,
     ))
 
+    # Партнёрский бонус владельцу (только для платных аккаунтов)
+    is_free = (subscription.plan or "free").lower() in ("free", "")
+    if tool.owner_user_id and not is_free:
+        await _credit_partner_bonus(
+            owner_user_id=tool.owner_user_id,
+            from_user_id=user_id,
+            tool=tool,
+            amount=max(1, energy_cost // 10),
+            db=db,
+        )
+
     # Создаём лог запуска заранее
     run_log = ToolRunLog(
         agent_id=agent_id,
@@ -442,6 +472,17 @@ async def run_tool_standalone(user_id: str, tool_id: str, field_values: dict, db
         agent_id=None,
         tool_name=tool.name,
     ))
+
+    # Партнёрский бонус владельцу (только для платных аккаунтов)
+    is_free = (subscription.plan or "free").lower() in ("free", "")
+    if tool.owner_user_id and not is_free:
+        await _credit_partner_bonus(
+            owner_user_id=tool.owner_user_id,
+            from_user_id=user_id,
+            tool=tool,
+            amount=max(1, energy_cost // 10),
+            db=db,
+        )
 
     run_log = ToolRunLog(
         agent_id=None,
