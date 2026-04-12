@@ -185,11 +185,10 @@ async def delete_user(
     """Удалить пользователя и все его данные."""
     if user_id == current_admin.id:
         raise HTTPException(status_code=400, detail="Нельзя удалить самого себя")
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
+    result = await db.execute(select(User.id).where(User.id == user_id))
+    if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Пользователь не найден")
-    await db.delete(user)
+    await db.execute(delete(User).where(User.id == user_id))
     await db.flush()
 
 
