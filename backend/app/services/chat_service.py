@@ -286,14 +286,18 @@ async def send_message(
                         total_energy_spent += energy_cost
 
                         # Начисляем партнёрский бонус владельцу инструмента (10%)
+                        print(f"[PARTNER] tool={matched_at.tool.id} owner_user_id={matched_at.tool.owner_user_id} energy={energy_cost}", flush=True)
                         if matched_at.tool.owner_user_id:
+                            bonus = max(1, energy_cost // 10)
+                            print(f"[PARTNER] crediting {bonus} tokens to owner {matched_at.tool.owner_user_id}", flush=True)
                             await _credit_partner_bonus(
                                 owner_user_id=matched_at.tool.owner_user_id,
                                 from_user_id=user_id,
                                 tool=matched_at.tool,
-                                amount=max(1, energy_cost // 10),
+                                amount=bonus,
                                 db=db,
                             )
+                            print(f"[PARTNER] done", flush=True)
 
                         messages.append({"role": "assistant", "content": raw_assistant.get("content"), "tool_calls": raw_assistant.get("tool_calls", [])})
                         messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": json.dumps(tool_result, ensure_ascii=False)})
