@@ -37,7 +37,13 @@ async def _get_tariff_mappings(db: AsyncSession) -> list[dict]:
 
 async def _sync_subscription(user: User, ascn_token: str, db: AsyncSession) -> None:
     """Запрашивает подписку ASCN и обновляет локальную."""
+    import logging
+    logger = logging.getLogger("ascn_sync")
+
     headers = {"Authorization": f"Bearer {ascn_token}"}
+    slug = "free"
+    plan_name = "Free"
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
@@ -45,23 +51,29 @@ async def _sync_subscription(user: User, ascn_token: str, db: AsyncSession) -> N
                 params={"tariff_type": "no-code", "lang": "ru", "limit": 10},
                 headers=headers,
             )
-        if not resp.is_success:
-            return
 
-        data = resp.json()
-        rows = data.get("rows", [])
-        # Берём первую неистёкшую подписку
-        active = next((r for r in rows if not r.get("expired", True)), None)
-        if not active:
-            active = rows[0] if rows else None
-        if not active:
-            return
+        if resp.is_success:
+            data = resp.json()
+            rows = data.get("rows", [])
+            # Берём первую неистёкшую подписку
+            active = next((r for r in rows if not r.get("expired", True)), None)
+            if not active:
+                active = rows[0] if rows else None
 
-        tariff = active.get("tariff", {})
-        slug = tariff.get("slug", "default")
-        plan_name = tariff.get("name", slug)
-        credits = tariff.get("nocode_credits_count", 0) or 0
+            if active:
+                tariff = active.get("tariff", {})
+                slug = tariff.get("slug", "free")
+                plan_name = tariff.get("name", slug)
+            else:
+                # Нет активной подписки в ASCN — считаем free
+                logger.info("No active ASCN subscription for user %s, using free", user.id)
+        else:
+            logger.warning("ASCN subscription API returned %s for user %s", resp.status_code, user.id)
 
+    except Exception as e:
+        logger.warning("ASCN subscription sync failed for user %s: %s", user.id, e)
+
+    try:
         # Ищем маппинг ASCN slug → локальный тариф
         mappings = await _get_tariff_mappings(db)
         mapping = next((m for m in mappings if m["slug"] == slug), None)
@@ -78,7 +90,6 @@ async def _sync_subscription(user: User, ascn_token: str, db: AsyncSession) -> N
 
         sub.plan = slug
         sub.plan_name = plan_name
-        # ASCN energy убрана — используем только Agents Token
         sub.max_agents = mapping.get("max_agents", sub.max_agents)
         sub.max_tools_per_agent = mapping.get("max_tools_per_agent", sub.max_tools_per_agent)
 
@@ -90,14 +101,15 @@ async def _sync_subscription(user: User, ascn_token: str, db: AsyncSession) -> N
             if local_plan and sub.tariff_plan_id != local_plan.id:
                 sub.tariff_plan_id = local_plan.id
                 sub.tokens_per_month = local_plan.tokens_per_month
-                # Пополняем токены только при смене тарифа
                 sub.tokens_left = local_plan.tokens_per_month
-                # Начисляем AI-баланс из тарифа при смене плана
                 if local_plan.balance_usd_per_month > 0:
                     sub.balance_usd = max(0, sub.balance_usd + local_plan.balance_usd_per_month)
+                logger.info("Assigned local plan '%s' to user %s", local_slug, user.id)
+            elif not local_plan:
+                logger.warning("Local plan slug '%s' not found in tariff_plans", local_slug)
 
-    except Exception:
-        pass  # Не ломаем логин если ASCN недоступен
+    except Exception as e:
+        logger.error("Failed to update local subscription for user %s: %s", user.id, e)
 
 
 async def login_via_ascn(email: str, password: str, db: AsyncSession) -> TokenResponse:
