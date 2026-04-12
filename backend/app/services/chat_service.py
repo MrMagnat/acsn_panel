@@ -288,6 +288,7 @@ async def send_message(
                         # Начисляем партнёрский бонус владельцу инструмента (10%)
                         # Только если запускающий пользователь НЕ на Free тарифе
                         is_free_user = (subscription.plan or "free").lower() in ("free", "")
+                        print(f"[PARTNER] tool={matched_at.tool.id} owner={matched_at.tool.owner_user_id} plan={subscription.plan} is_free={is_free_user}", flush=True)
                         if matched_at.tool.owner_user_id and not is_free_user:
                             bonus = max(1, energy_cost // 10)
                             await _credit_partner_bonus(
