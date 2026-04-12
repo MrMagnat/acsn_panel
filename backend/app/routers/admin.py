@@ -176,6 +176,23 @@ async def update_user(
     )
 
 
+@router.delete("/users/{user_id}", status_code=204)
+async def delete_user(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    """Удалить пользователя и все его данные."""
+    if user_id == current_admin.id:
+        raise HTTPException(status_code=400, detail="Нельзя удалить самого себя")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    await db.delete(user)
+    await db.flush()
+
+
 # ─── Энергия пользователей ───────────────────────────────────────────────────
 
 @router.get("/users/{user_id}/energy", response_model=UserEnergyResponse)

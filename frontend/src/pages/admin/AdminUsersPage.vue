@@ -57,7 +57,10 @@
             <td class="px-4 py-3 text-gray-600">{{ user.tools_count }}</td>
             <td class="px-4 py-3 text-gray-400 text-xs">{{ formatDate(user.created_at) }}</td>
             <td class="px-4 py-3">
-              <button class="text-xs text-primary-600 hover:underline" @click="openProfile(user)">Управление</button>
+              <div class="flex items-center gap-3">
+                <button class="text-xs text-primary-600 hover:underline" @click="openProfile(user)">Управление</button>
+                <button class="text-xs text-red-500 hover:text-red-700 hover:underline" @click="confirmDelete(user)">Удалить</button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -397,6 +400,23 @@ async function refreshData() {
     const res = await adminApi.getUserEnergy(profileUser.value.id)
     profileData.value = res.data
   } catch {}
+}
+
+function confirmDelete(user) {
+  if (confirm(`Удалить пользователя ${user.email}?\n\nВсе данные (агенты, инструменты, история) будут удалены безвозвратно.`)) {
+    deleteUser(user)
+  }
+}
+
+async function deleteUser(user) {
+  try {
+    await adminApi.deleteUser(user.id)
+    users.value = users.value.filter((u) => u.id !== user.id)
+    if (profileUser.value?.id === user.id) closeProfile()
+    toast.success(`Пользователь ${user.email} удалён`)
+  } catch (e) {
+    toast.error(e.response?.data?.detail || 'Ошибка при удалении')
+  }
 }
 
 function formatDate(d) {

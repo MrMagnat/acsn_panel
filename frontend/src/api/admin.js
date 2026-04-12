@@ -4,6 +4,7 @@ export const adminApi = {
   // Пользователи
   getUsers: (params) => http.get('/admin/users', { params }),
   updateUser: (id, data) => http.patch(`/admin/users/${id}`, data),
+  deleteUser: (id) => http.delete(`/admin/users/${id}`),
 
   // Шаблонные агенты
   getTemplates: () => http.get('/admin/template-agents'),
