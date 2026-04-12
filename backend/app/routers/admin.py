@@ -63,6 +63,7 @@ class TariffPlanCreate(BaseModel):
     tokens_per_month: int = 100
     is_active: bool = True
     is_default: bool = False
+    hide_upgrade: bool = False
     sort_order: int = 0
 
 
@@ -79,6 +80,7 @@ class TariffPlanUpdate(BaseModel):
     tokens_per_month: int | None = None
     is_active: bool | None = None
     is_default: bool | None = None
+    hide_upgrade: bool | None = None
     sort_order: int | None = None
 
 

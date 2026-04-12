@@ -19,6 +19,7 @@ class TariffPlan(Base):
     tokens_per_month: Mapped[int] = mapped_column(Integer, default=100)  # собственные токены платформы
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)     # применяется новым пользователям
+    hide_upgrade: Mapped[bool] = mapped_column(Boolean, default=False)   # скрыть кнопку "Повысить тариф"
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

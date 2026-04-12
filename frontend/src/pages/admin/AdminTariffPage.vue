@@ -208,7 +208,7 @@
               <input v-model.number="planForm.sort_order" type="number" class="input text-sm" />
             </div>
           </div>
-          <div class="flex items-center gap-4 pt-1">
+          <div class="flex items-center gap-4 pt-1 flex-wrap">
             <label class="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" v-model="planForm.is_active" class="rounded" />
               <span class="text-sm text-gray-700">Активен</span>
@@ -217,6 +217,10 @@
               <input type="checkbox" v-model="planForm.is_default" class="rounded" />
               <span class="text-sm text-gray-700">По умолчанию</span>
               <span class="text-xs text-gray-400">(для новых пользователей)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="planForm.hide_upgrade" class="rounded" />
+              <span class="text-sm text-gray-700">Скрыть "Повысить тариф"</span>
             </label>
           </div>
         </div>
@@ -264,6 +268,7 @@ const PLAN_DEFAULTS = {
   tokens_per_month: 1000,
   is_active: true,
   is_default: false,
+  hide_upgrade: false,
   sort_order: 0,
 }
 const planForm = ref({ ...PLAN_DEFAULTS })
@@ -301,6 +306,7 @@ function openEditModal(plan) {
     tokens_per_month: plan.tokens_per_month,
     is_active: plan.is_active,
     is_default: plan.is_default,
+    hide_upgrade: plan.hide_upgrade ?? false,
     sort_order: plan.sort_order,
   }
   showPlanModal.value = true

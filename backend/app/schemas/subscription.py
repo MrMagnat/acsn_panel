@@ -15,6 +15,7 @@ class TariffPlanPublic(BaseModel):
     max_knowledge_bases: int = 1
     tokens_per_month: int
     is_default: bool = False
+    hide_upgrade: bool = False
     sort_order: int = 0
 
     model_config = {"from_attributes": True}
