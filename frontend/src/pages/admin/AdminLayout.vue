@@ -27,6 +27,9 @@
         <RouterLink to="/admin/tariffs" class="nav-link" active-class="nav-link--active">
           <span>💎</span> Тарифы
         </RouterLink>
+        <RouterLink to="/admin/partner" class="nav-link" active-class="nav-link--active">
+          <span>🤝</span> Партнёры
+        </RouterLink>
         <div class="border-t border-gray-100 my-2"></div>
         <RouterLink to="/cabinet/office" class="nav-link text-gray-400">
           <span>←</span> Личный кабинет

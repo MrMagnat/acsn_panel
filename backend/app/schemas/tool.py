@@ -35,6 +35,7 @@ class ToolBase(BaseModel):
 
 class ToolCreate(ToolBase):
     fields: list[ToolFieldCreate] = []
+    owner_user_id: Optional[str] = None
 
 
 class ToolUpdate(BaseModel):
@@ -46,10 +47,12 @@ class ToolUpdate(BaseModel):
     energy_cost: Optional[int] = None
     fields: Optional[list[ToolFieldCreate]] = None
     output_fields: Optional[list] = None
+    owner_user_id: Optional[str] = None
 
 
 class ToolResponse(ToolBase):
     id: str
     fields: list[ToolFieldResponse] = []
+    owner_user_id: Optional[str] = None
 
     model_config = {"from_attributes": True}

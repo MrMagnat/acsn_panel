@@ -24,5 +24,7 @@ class Subscription(Base):
     balance_usd: Mapped[int] = mapped_column(Integer, default=0, nullable=False)       # баланс ИИ в центах
     renewed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    partner_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
     user: Mapped["User"] = relationship("User", back_populates="subscription")
     tariff_plan: Mapped["TariffPlan | None"] = relationship("TariffPlan", back_populates="subscriptions")

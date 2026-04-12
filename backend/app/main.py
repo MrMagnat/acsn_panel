@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.db import AsyncSessionLocal
-from .routers import auth, agents, tools, chat, triggers, admin, webhooks, subscription, run_logs, onboarding, knowledge_base, workflow, skills
+from .routers import auth, agents, tools, chat, triggers, admin, webhooks, subscription, run_logs, onboarding, knowledge_base, workflow, skills, partner
 from .services.scheduler_service import start_scheduler, stop_scheduler, get_scheduler, schedule_trigger
 from .services.workflow_service import schedule_workflow_crons
 from apscheduler.triggers.cron import CronTrigger
@@ -92,6 +92,7 @@ app.include_router(onboarding.router)
 app.include_router(knowledge_base.router)
 app.include_router(workflow.router)
 app.include_router(skills.router)
+app.include_router(partner.router)
 
 
 @app.get("/health")

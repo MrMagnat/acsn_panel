@@ -16,9 +16,11 @@ class Tool(Base):
     energy_cost: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     # Выходные поля: что инструмент возвращает. Формат: [{"name": "result"}, {"name": "email"}]
     output_fields: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    owner_user_id: Mapped[str | None] = mapped_column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     fields: Mapped[list["ToolField"]] = relationship("ToolField", back_populates="tool", cascade="all, delete-orphan")
     agent_tools: Mapped[list["AgentTool"]] = relationship("AgentTool", back_populates="tool")
+    owner: Mapped["User | None"] = relationship("User", foreign_keys=[owner_user_id])
 
 
 class ToolField(Base):

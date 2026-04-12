@@ -43,4 +43,13 @@ export const adminApi = {
   createTool: (data) => http.post('/admin/tools', data),
   updateTool: (id, data) => http.patch(`/admin/tools/${id}`, data),
   deleteTool: (id) => http.delete(`/admin/tools/${id}`),
+
+  // Партнёрская программа
+  getPartners: () => http.get('/admin/partner'),
+  adjustPartnerTokens: (userId, data) => http.post(`/admin/partner/${userId}/adjust`, data),
+  getPartnerTransactions: (userId) => http.get(`/admin/partner/${userId}/transactions`),
+  getPartnerSettings: () => http.get('/admin/partner/settings'),
+  savePartnerSettings: (data) => http.put('/admin/partner/settings', data),
+  getWithdrawRequests: () => http.get('/admin/partner/withdrawals'),
+  updateWithdrawRequest: (id, data) => http.patch(`/admin/partner/withdrawals/${id}`, data),
 }

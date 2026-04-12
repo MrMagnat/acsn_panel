@@ -22,6 +22,7 @@ const routes = [
       { path: 'knowledge-base', name: 'KnowledgeBase', component: () => import('@/pages/cabinet/KnowledgeBasePage.vue') },
       { path: 'knowledge-base/:id', name: 'KnowledgeBaseDetail', component: () => import('@/pages/cabinet/KnowledgeBaseDetailPage.vue') },
       { path: 'subscription', name: 'Subscription', component: () => import('@/pages/cabinet/SubscriptionPage.vue') },
+      { path: 'partner', component: () => import('@/pages/cabinet/PartnerPage.vue') },
     ],
   },
 
@@ -39,6 +40,7 @@ const routes = [
       { path: 'onboarding', name: 'AdminOnboarding', component: () => import('@/pages/admin/AdminOnboardingPage.vue') },
       { path: 'ascn', name: 'AdminAscn', component: () => import('@/pages/admin/AdminAscnPage.vue') },
       { path: 'tariffs', name: 'AdminTariffs', component: () => import('@/pages/admin/AdminTariffPage.vue') },
+      { path: 'partner', name: 'AdminPartner', component: () => import('@/pages/admin/AdminPartnerPage.vue') },
     ],
   },
 

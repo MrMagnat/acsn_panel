@@ -17,6 +17,9 @@
         <RouterLink to="/cabinet/skills" class="nav-link" active-class="nav-link--active">
           <span>✨</span> Скиллы
         </RouterLink>
+        <RouterLink to="/cabinet/partner" class="nav-link" active-class="nav-link--active">
+          <span>🤝</span> Партнёрка
+        </RouterLink>
         <RouterLink id="nav-history" to="/cabinet/history" class="nav-link" active-class="nav-link--active">
           <span>📋</span> История запусков
         </RouterLink>

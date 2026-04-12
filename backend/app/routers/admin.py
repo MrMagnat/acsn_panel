@@ -647,6 +647,7 @@ async def create_tool(
         is_active=data.is_active,
         energy_cost=data.energy_cost,
         output_fields=data.output_fields,
+        owner_user_id=data.owner_user_id,
     )
     db.add(tool)
     await db.flush()
@@ -800,6 +801,159 @@ async def _sync_template_tools(template_id: str, tool_ids: list[str], db: AsyncS
     for tool_id in tool_ids:
         db.add(TemplateAgentTool(template_id=template_id, tool_id=tool_id))
     await db.flush()
+
+
+# ─── Партнёрская программа ───────────────────────────────────────────────────
+
+from ..models.partner_transaction import PartnerTransaction, WithdrawRequest as PartnerWithdrawRequest
+
+
+@router.get("/partner/settings")
+async def get_partner_settings(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    result = await db.execute(select(Setting).where(Setting.key == "partner_token_rate"))
+    row = result.scalar_one_or_none()
+    rate = int(row.value) if row and row.value else 1000
+    return {"partner_token_rate": rate}
+
+
+@router.put("/partner/settings")
+async def save_partner_settings(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    rate = data.get("partner_token_rate", 1000)
+    result = await db.execute(select(Setting).where(Setting.key == "partner_token_rate"))
+    row = result.scalar_one_or_none()
+    if row:
+        row.value = str(rate)
+    else:
+        db.add(Setting(key="partner_token_rate", value=str(rate)))
+    await db.flush()
+    return {"partner_token_rate": rate}
+
+
+@router.get("/partner/withdrawals")
+async def list_withdraw_requests(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    result = await db.execute(
+        select(PartnerWithdrawRequest, User)
+        .join(User, User.id == PartnerWithdrawRequest.user_id)
+        .order_by(PartnerWithdrawRequest.created_at.desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "id": req.id, "user_id": req.user_id, "email": user.email, "name": user.name,
+            "amount": req.amount, "comment": req.comment, "status": req.status,
+            "admin_note": req.admin_note, "created_at": req.created_at,
+        }
+        for req, user in rows
+    ]
+
+
+@router.patch("/partner/withdrawals/{req_id}")
+async def update_withdraw_request(
+    req_id: str,
+    data: dict,  # {status: str, admin_note: str}
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    result = await db.execute(select(PartnerWithdrawRequest).where(PartnerWithdrawRequest.id == req_id))
+    req = result.scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Заявка не найдена")
+
+    new_status = data.get("status", req.status)
+    # При выполнении — списываем токены с баланса
+    if new_status == "done" and req.status != "done":
+        sub_result = await db.execute(select(Subscription).where(Subscription.user_id == req.user_id))
+        sub = sub_result.scalar_one_or_none()
+        if sub:
+            sub.partner_tokens = max(0, sub.partner_tokens - req.amount)
+            tx = PartnerTransaction(
+                user_id=req.user_id,
+                amount=-req.amount,
+                description=f"Вывод средств #{req_id[:8]}",
+            )
+            db.add(tx)
+
+    req.status = new_status
+    if "admin_note" in data:
+        req.admin_note = data["admin_note"]
+    await db.flush()
+    return {"ok": True, "status": req.status}
+
+
+@router.get("/partner")
+async def list_partners(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Пользователи с ненулевым партнёрским балансом."""
+    result = await db.execute(
+        select(Subscription, User)
+        .join(User, User.id == Subscription.user_id)
+        .where(Subscription.partner_tokens > 0)
+        .order_by(Subscription.partner_tokens.desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "user_id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "partner_tokens": sub.partner_tokens,
+        }
+        for sub, user in rows
+    ]
+
+
+@router.post("/partner/{user_id}/adjust")
+async def adjust_partner_tokens(
+    user_id: str,
+    data: dict,  # {amount: int, description: str}
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
+    sub = sub_result.scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Подписка не найдена")
+    amount = int(data.get("amount", 0))
+    sub.partner_tokens = max(0, sub.partner_tokens + amount)
+    tx = PartnerTransaction(
+        user_id=user_id,
+        amount=amount,
+        description=data.get("description", "Корректировка администратором"),
+    )
+    db.add(tx)
+    await db.flush()
+    return {"partner_tokens": sub.partner_tokens}
+
+
+@router.get("/partner/{user_id}/transactions")
+async def get_partner_transactions_admin(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    result = await db.execute(
+        select(PartnerTransaction)
+        .where(PartnerTransaction.user_id == user_id)
+        .order_by(PartnerTransaction.created_at.desc())
+        .limit(100)
+    )
+    txs = result.scalars().all()
+    return [
+        {"id": t.id, "amount": t.amount, "description": t.description, "tool_name": t.tool_name, "created_at": t.created_at}
+        for t in txs
+    ]
 
 
 def _template_to_response(template: TemplateAgent) -> TemplateAgentResponse:

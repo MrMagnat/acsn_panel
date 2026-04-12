@@ -14,6 +14,7 @@ from ..models.subscription import Subscription
 from ..models.energy_transaction import EnergyTransaction
 from ..models.tool_run_log import ToolRunLog
 from ..models.trigger import AutoTrigger
+from ..models.partner_transaction import PartnerTransaction
 from ..services.scheduler_service import schedule_trigger
 from ..schemas.chat import ChatResponse, ChatMessageResponse
 
@@ -284,6 +285,16 @@ async def send_message(
                         await _log_transaction(user_id, -energy_cost, f"Инструмент: {tool_name}", agent_id, tool_name, db)
                         total_energy_spent += energy_cost
 
+                        # Начисляем партнёрский бонус владельцу инструмента (10%)
+                        if matched_at.tool.owner_user_id:
+                            await _credit_partner_bonus(
+                                owner_user_id=matched_at.tool.owner_user_id,
+                                from_user_id=user_id,
+                                tool=matched_at.tool,
+                                amount=max(1, energy_cost // 10),
+                                db=db,
+                            )
+
                         messages.append({"role": "assistant", "content": raw_assistant.get("content"), "tool_calls": raw_assistant.get("tool_calls", [])})
                         messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": json.dumps(tool_result, ensure_ascii=False)})
 
@@ -353,6 +364,26 @@ async def _log_transaction(
         agent_id=agent_id,
         tool_name=tool_name,
     ))
+
+
+async def _credit_partner_bonus(
+    owner_user_id: str, from_user_id: str, tool, amount: int, db: AsyncSession
+) -> None:
+    """Начисляем партнёрский бонус владельцу инструмента."""
+    await db.execute(
+        update(Subscription)
+        .where(Subscription.user_id == owner_user_id)
+        .values(partner_tokens=Subscription.partner_tokens + amount)
+    )
+    tx = PartnerTransaction(
+        user_id=owner_user_id,
+        tool_id=tool.id,
+        tool_name=tool.name,
+        from_user_id=from_user_id,
+        amount=amount,
+        description=f"Бонус за запуск инструмента «{tool.name}»",
+    )
+    db.add(tx)
 
 
 def _build_system_tool_definitions(agent, configured_tools: list) -> list[dict]:
