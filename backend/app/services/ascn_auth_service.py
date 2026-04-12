@@ -17,7 +17,7 @@ from ..models.setting import Setting
 from ..core.security import create_access_token, create_refresh_token
 from ..schemas.auth import TokenResponse
 
-ASCN_API = "https://dev-api.ascn.ai"
+ASCN_API = "https://api.ascn.ai"
 
 DEFAULT_TARIFF_MAPPINGS = [
     {"slug": "default", "name": "Базовый", "max_agents": 1, "max_tools_per_agent": 2},
