@@ -4,7 +4,7 @@ from sqlalchemy import select, func
 from datetime import datetime, timezone, timedelta
 
 from ..core.db import get_db
-from ..core.security import get_current_user
+from ..core.deps import get_current_user
 from ..models.user import User
 from ..models.tool import Tool
 from ..models.subscription import Subscription
