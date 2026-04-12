@@ -107,7 +107,10 @@ async def list_users(
     """Список всех пользователей с информацией о подписке и агентах."""
     query = (
         select(User)
-        .options(selectinload(User.subscription), selectinload(User.agents).selectinload(UserAgent.agent_tools))
+        .options(
+            selectinload(User.subscription).selectinload(Subscription.tariff_plan),
+            selectinload(User.agents).selectinload(UserAgent.agent_tools),
+        )
         .order_by(User.created_at.desc())
     )
     result = await db.execute(query)
@@ -126,7 +129,8 @@ async def list_users(
             name=user.name,
             is_admin=user.is_admin,
             created_at=user.created_at,
-            plan=sub.plan if sub else "free",
+            plan=sub.plan if sub else "—",
+            tariff_plan_name=sub.tariff_plan.name if sub and sub.tariff_plan else None,
             agents_count=agents_count,
             tools_count=tools_count,
             ascn_user_id=user.ascn_user_id,
@@ -369,6 +373,7 @@ async def set_user_tariff(
             raise HTTPException(status_code=404, detail="Тарифный план не найден")
         sub.tariff_plan_id = plan.id
         sub.tokens_per_month = plan.tokens_per_month
+        sub.tokens_left = plan.tokens_per_month  # начисляем токены при назначении тарифа
         sub.max_agents = plan.max_agents
         sub.max_tools_per_agent = plan.max_tools_per_agent
         # Начисляем AI-баланс из тарифа

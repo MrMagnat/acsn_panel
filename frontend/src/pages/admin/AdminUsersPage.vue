@@ -50,8 +50,9 @@
               </div>
             </td>
             <td class="px-4 py-3">
-              <span class="badge-inactive capitalize">{{ user.plan }}</span>
-              <span v-if="user.is_admin" class="badge-warning ml-1">Admin</span>
+              <div v-if="user.tariff_plan_name" class="text-xs font-medium text-gray-800">{{ user.tariff_plan_name }}</div>
+              <div class="text-xs text-gray-400">{{ user.plan }}</div>
+              <span v-if="user.is_admin" class="badge-warning mt-0.5 inline-block">Admin</span>
             </td>
             <td class="px-4 py-3 text-gray-600">{{ user.agents_count }}</td>
             <td class="px-4 py-3 text-gray-600">{{ user.tools_count }}</td>

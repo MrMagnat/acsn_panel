@@ -10,7 +10,8 @@ class AdminUserResponse(BaseModel):
     name: str
     is_admin: bool
     created_at: datetime
-    plan: str
+    plan: str                              # ASCN slug
+    tariff_plan_name: Optional[str] = None  # Платформенный тариф
     agents_count: int
     tools_count: int
     ascn_user_id: Optional[int] = None
