@@ -28,14 +28,11 @@
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5">
                   <div class="font-semibold text-gray-900 text-sm">{{ skill.name }}</div>
-                  <a
+                  <button
                     v-if="skill.is_maintenance"
-                    href="https://t.me/ascnai_nocode"
-                    target="_blank"
-                    rel="noopener"
                     class="text-orange-500 hover:text-orange-600 text-sm"
-                    title="Скилл временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
-                  >🔧</a>
+                    @click.stop="maintenanceSkill = skill"
+                  >🔧</button>
                 </div>
                 <p v-if="skill.description" class="text-xs text-gray-500 mt-0.5 line-clamp-3">{{ skill.description }}</p>
               </div>
@@ -47,15 +44,23 @@
         </div>
       </div>
     </div>
+  <MaintenanceModal
+    :show="!!maintenanceSkill"
+    :label="maintenanceSkill?.name || 'Скилл'"
+    @close="maintenanceSkill = null"
+    @continue="maintenanceSkill = null"
+  />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { skillsApi } from '@/api/skills'
+import MaintenanceModal from '@/components/MaintenanceModal.vue'
 
 const skills = ref([])
 const loading = ref(true)
+const maintenanceSkill = ref(null)
 
 onMounted(async () => {
   try {

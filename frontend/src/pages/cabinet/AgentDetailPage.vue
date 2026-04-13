@@ -15,14 +15,11 @@
             <span :class="agent.is_active ? 'badge-active' : 'badge-inactive'">
               {{ agent.is_active ? 'Активен' : 'Неактивен' }}
             </span>
-            <a
+            <button
               v-if="agent.is_maintenance"
-              href="https://t.me/ascnai_nocode"
-              target="_blank"
-              rel="noopener"
               class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 text-xs font-medium hover:bg-orange-200 transition-colors"
-              title="Агент временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
-            >🔧 тех.обслуживание</a>
+              @click="maintenanceLabel = agent.name; showMaintenance = true"
+            >🔧 тех.обслуживание</button>
           </div>
           <p v-if="agent.description" class="text-gray-500 text-sm mt-1">{{ agent.description }}</p>
         </div>
@@ -96,15 +93,11 @@
                   <div class="min-w-0">
                     <div class="flex items-center gap-1">
                       <div class="text-sm font-medium text-gray-800 truncate">{{ as_.skill.name }}</div>
-                      <a
+                      <button
                         v-if="as_.skill.is_maintenance"
-                        href="https://t.me/ascnai_nocode"
-                        target="_blank"
-                        rel="noopener"
                         class="shrink-0 text-orange-500 hover:text-orange-600 text-xs"
-                        title="Скилл временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
-                        @click.stop
-                      >🔧</a>
+                        @click.stop="maintenanceLabel = as_.skill.name; showMaintenance = true"
+                      >🔧</button>
                     </div>
                     <div v-if="as_.skill.description" class="text-xs text-gray-400 truncate">{{ as_.skill.description }}</div>
                   </div>
@@ -312,10 +305,18 @@
       </div>
     </Teleport>
   </div>
+
+  <MaintenanceModal
+    :show="showMaintenance"
+    :label="maintenanceLabel"
+    @close="showMaintenance = false"
+    @continue="showMaintenance = false"
+  />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import MaintenanceModal from '@/components/MaintenanceModal.vue'
 
 import { useRoute, useRouter } from 'vue-router'
 import { useAgentsStore } from '@/stores/agents'
@@ -341,6 +342,8 @@ const subStore = useSubscriptionStore()
 
 const loading = ref(true)
 const agent = ref(null)
+const showMaintenance = ref(false)
+const maintenanceLabel = ref('')
 const showEditModal = ref(false)
 const showToolStore = ref(false)
 const showUpgradeModal = ref(false)

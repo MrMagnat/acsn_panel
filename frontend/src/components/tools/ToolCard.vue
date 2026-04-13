@@ -7,15 +7,11 @@
       <div class="min-w-0">
         <div class="flex items-center gap-1.5">
           <div class="font-medium text-sm text-gray-900 truncate">{{ agentTool.tool.name }}</div>
-          <a
+          <button
             v-if="agentTool.tool.is_maintenance"
-            href="https://t.me/ascnai_nocode"
-            target="_blank"
-            rel="noopener"
             class="shrink-0 text-orange-500 hover:text-orange-600"
-            title="Инструмент временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
-            @click.stop
-          >🔧</a>
+            @click.stop="showMaintenance = true"
+          >🔧</button>
         </div>
         <span :class="agentTool.is_configured ? 'badge-active' : 'badge-warning'" class="mt-0.5 inline-block">
           {{ agentTool.is_configured ? 'Настроен' : 'Не активен' }}
@@ -33,7 +29,7 @@
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
         :class="running ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary-100 text-primary-700 hover:bg-primary-200'"
         :disabled="running"
-        @click.stop="handleRun"
+        @click.stop="agentTool.tool.is_maintenance ? showMaintenance = true : handleRun()"
       >
         <span v-if="running" class="inline-block w-3 h-3 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></span>
         <span v-else>▶</span>
@@ -192,6 +188,12 @@
         </div>
       </div>
     </div>
+  <MaintenanceModal
+    :show="showMaintenance"
+    :label="agentTool.tool.name"
+    @close="showMaintenance = false"
+    @continue="showMaintenance = false; handleRun()"
+  />
   </Teleport>
 </template>
 
@@ -202,6 +204,7 @@ import { useToastStore } from '@/stores/toast'
 import { useSubscriptionStore } from '@/stores/subscription'
 import ResultRenderer from './ResultRenderer.vue'
 import AiTokenField from './AiTokenField.vue'
+import MaintenanceModal from '@/components/MaintenanceModal.vue'
 
 const props = defineProps({
   agentTool: { type: Object, required: true },
@@ -212,6 +215,7 @@ const emit = defineEmits(['update', 'remove'])
 const toast = useToastStore()
 const subStore = useSubscriptionStore()
 const openModal = ref(false)
+const showMaintenance = ref(false)
 const showNotConfigured = ref(false)
 const showRunChoice = ref(false)
 const runAfterSave = ref(false)

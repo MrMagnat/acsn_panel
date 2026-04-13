@@ -39,19 +39,15 @@
               :key="t.id"
               class="card p-4 text-left hover:shadow-md hover:border-primary-300 transition-all cursor-pointer border-2 border-transparent"
               :disabled="creating"
-              @click="selectTemplate(t)"
+              @click="t.is_maintenance ? (maintenanceTemplate = t) : selectTemplate(t)"
             >
               <div class="flex items-center gap-1.5">
                 <div class="font-semibold text-sm text-gray-900">{{ t.name }}</div>
-                <a
+                <button
                   v-if="t.is_maintenance"
-                  href="https://t.me/ascnai_nocode"
-                  target="_blank"
-                  rel="noopener"
                   class="text-orange-500 hover:text-orange-600 text-xs"
-                  title="Агент временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
-                  @click.stop
-                >🔧</a>
+                  @click.stop="maintenanceTemplate = t"
+                >🔧</button>
               </div>
               <div class="text-xs text-gray-500 mt-1 line-clamp-2">{{ t.description || 'Без описания' }}</div>
               <div class="mt-2 flex flex-wrap gap-1">
@@ -123,6 +119,13 @@
     </div>
   </div>
 
+  <MaintenanceModal
+    :show="!!maintenanceTemplate"
+    :label="maintenanceTemplate?.name || 'Агент'"
+    @close="maintenanceTemplate = null"
+    @continue="doSelectTemplate(maintenanceTemplate); maintenanceTemplate = null"
+  />
+
   <!-- Попап лимита подписки -->
   <UpgradePlanModal
     v-if="showUpgradeModal"
@@ -140,6 +143,7 @@ import { useToastStore } from '@/stores/toast'
 import { toolsApi } from '@/api/tools'
 import { useSubscriptionStore } from '@/stores/subscription'
 import UpgradePlanModal from '@/components/UpgradePlanModal.vue'
+import MaintenanceModal from '@/components/MaintenanceModal.vue'
 
 const emit = defineEmits(['close', 'created'])
 
@@ -150,6 +154,7 @@ const subStore = useSubscriptionStore()
 
 const step = ref('choose')
 const templates = ref([])
+const maintenanceTemplate = ref(null)
 const loadingTemplates = ref(false)
 const loadingTools = ref(false)
 const creating = ref(false)
@@ -181,6 +186,10 @@ onMounted(async () => {
   loadingTemplates.value = false
   loadingTools.value = false
 })
+
+async function doSelectTemplate(template) {
+  await selectTemplate(template)
+}
 
 async function selectTemplate(template) {
   creating.value = true
