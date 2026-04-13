@@ -27,7 +27,7 @@
         <div class="flex items-center justify-between mb-4">
           <div>
             <h2 class="font-semibold text-gray-700">Модели и цены</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Цены в центах (100 = $1.00). Списывается за каждое сообщение.</p>
+            <p class="text-xs text-gray-400 mt-0.5">Цены в единицах (1 = $0.0001). Списывается за каждое сообщение.</p>
           </div>
           <button class="btn-secondary text-xs" @click="addModel">+ Модель</button>
         </div>
