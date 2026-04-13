@@ -17,6 +17,7 @@ class TemplateAgent(Base):
     skills: Mapped[str] = mapped_column(Text, default="")
     energy_per_chat: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_maintenance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     prompt_suggestions: Mapped[str] = mapped_column(Text, default="[]")
     # Скиллы из каталога, которые предустанавливаются агенту при создании из шаблона
     skill_ids: Mapped[list] = mapped_column(JSON, default=list, nullable=False)

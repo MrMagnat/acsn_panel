@@ -14,6 +14,7 @@ class TemplateAgentCreate(BaseModel):
     skills: str = ""
     energy_per_chat: int = 5
     is_active: bool = True
+    is_maintenance: bool = False
     tool_ids: list[str] = []
     skill_ids: list[str] = []
     prompt_suggestions: list[str] = []
@@ -29,6 +30,7 @@ class TemplateAgentUpdate(BaseModel):
     skills: Optional[str] = None
     energy_per_chat: Optional[int] = None
     is_active: Optional[bool] = None
+    is_maintenance: Optional[bool] = None
     tool_ids: Optional[list[str]] = None
     skill_ids: Optional[list[str]] = None
     prompt_suggestions: Optional[list[str]] = None
@@ -45,6 +47,7 @@ class TemplateAgentResponse(BaseModel):
     skills: str
     energy_per_chat: int
     is_active: bool
+    is_maintenance: bool = False
     prompt_suggestions: list[str] = []
     tools: list[ToolResponse] = []
     skill_ids: list[str] = []
