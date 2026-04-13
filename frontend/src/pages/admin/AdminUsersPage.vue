@@ -178,7 +178,7 @@
               <div class="flex items-center justify-between mb-3">
                 <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider">AI Баланс</div>
                 <div v-if="profileData" class="text-sm font-bold" :class="profileData.balance_usd > 0 ? 'text-green-600' : 'text-gray-400'">
-                  ${{ (profileData.balance_usd / 100).toFixed(2) }}
+                  ${{ (profileData.balance_usd / 10000).toFixed(4) }}
                 </div>
               </div>
               <div class="space-y-2">
@@ -200,13 +200,13 @@
                     type="number"
                     min="1"
                     class="input flex-1 text-sm"
-                    placeholder="Центы (100 = $1.00)"
+                    placeholder="Единицы (1 = $0.0001)"
                   />
                   <button class="btn-primary text-sm shrink-0" :disabled="!balanceAmount || balanceSaving" @click="applyBalance">
                     {{ balanceSaving ? '...' : 'ОК' }}
                   </button>
                 </div>
-                <p class="text-xs text-gray-400">Вводите в центах: 500 = $5.00</p>
+                <p class="text-xs text-gray-400">Вводите в единицах: 10000 = $1.00</p>
               </div>
             </div>
 

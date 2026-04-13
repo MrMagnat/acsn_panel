@@ -17,7 +17,7 @@
         <select v-model="selectedModel" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 flex-1 min-w-0">
           <option value="">— модель —</option>
           <option v-for="m in ascnModels" :key="m.id" :value="m.id">
-            {{ m.name }} — ${{ (m.price_usd / 100).toFixed(2) }}/сообщ.
+            {{ m.name }} — ${{ (m.price_usd / 10000).toFixed(4) }}/сообщ.
           </option>
         </select>
         <span class="text-xs px-2 py-0.5 rounded-full" :class="subStore.balanceUsd > 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'">

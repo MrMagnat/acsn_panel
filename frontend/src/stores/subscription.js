@@ -27,9 +27,9 @@ export const useSubscriptionStore = defineStore('subscription', () => {
   const tariffPlan = computed(() => data.value?.tariff_plan ?? null)
   const planName = computed(() => tariffPlan.value?.name ?? data.value?.plan_name ?? data.value?.plan ?? 'Бесплатный')
 
-  // Долларовый баланс в центах → строка "$X.XX"
+  // Долларовый баланс в единицах (1 = $0.0001) → строка "$X.XXXX"
   const balanceUsd = computed(() => data.value?.balance_usd ?? 0)
-  const balanceFormatted = computed(() => `$${(balanceUsd.value / 100).toFixed(2)}`)
+  const balanceFormatted = computed(() => `$${(balanceUsd.value / 10000).toFixed(4)}`)
 
   // Лимиты (из подписки)
   const maxAgents = computed(() => data.value?.max_agents ?? 1)

@@ -21,7 +21,7 @@
               Бесплатно
             </div>
             <div v-else-if="sub?.tariff_plan?.price_usd" class="mt-1 text-sm text-gray-600">
-              ${{ (sub.tariff_plan.price_usd / 100).toFixed(2) }} / месяц
+              ${{ (sub.tariff_plan.price_usd / 10000).toFixed(4) }} / месяц
             </div>
           </div>
           <div class="shrink-0 text-right">
@@ -123,11 +123,11 @@
               <div>⟨⟩ {{ plan.max_workflows }} воркфлоу</div>
               <div>🗃️ {{ plan.max_knowledge_bases }} баз знаний</div>
               <div>🪙 {{ plan.tokens_per_month.toLocaleString('ru') }} Agents Token/мес</div>
-              <div v-if="plan.balance_usd_per_month > 0">🤖 ${{ (plan.balance_usd_per_month / 100).toFixed(2) }} AI баланс/мес</div>
+              <div v-if="plan.balance_usd_per_month > 0">🤖 ${{ (plan.balance_usd_per_month / 10000).toFixed(4) }} AI баланс/мес</div>
             </div>
             <div class="mt-3 pt-3 border-t border-gray-100">
               <div v-if="plan.price_usd === 0" class="text-sm font-semibold text-green-700">Бесплатно</div>
-              <div v-else class="text-sm font-semibold text-gray-900">${{ (plan.price_usd / 100).toFixed(2) }}/мес</div>
+              <div v-else class="text-sm font-semibold text-gray-900">${{ (plan.price_usd / 10000).toFixed(4) }}/мес</div>
             </div>
           </div>
         </div>

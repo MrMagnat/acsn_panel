@@ -56,8 +56,8 @@
               <span>🗃️ {{ plan.max_knowledge_bases }} KB</span>
               <span>🪙 {{ plan.tokens_per_month.toLocaleString('ru') }} ток./мес</span>
               <span v-if="plan.price_usd === 0" class="text-green-600">Бесплатно</span>
-              <span v-else class="text-gray-700 font-medium">${{ (plan.price_usd / 100).toFixed(2) }}/мес</span>
-              <span v-if="plan.balance_usd_per_month > 0" class="text-blue-600">· ${{ (plan.balance_usd_per_month / 100).toFixed(2) }} AI</span>
+              <span v-else class="text-gray-700 font-medium">${{ (plan.price_usd / 10000).toFixed(4) }}/мес</span>
+              <span v-if="plan.balance_usd_per_month > 0" class="text-blue-600">· ${{ (plan.balance_usd_per_month / 10000).toFixed(4) }} AI</span>
             </div>
           </div>
 
@@ -180,7 +180,7 @@
             </div>
           </div>
           <div>
-            <label class="text-xs font-medium text-gray-600 mb-1 block">AI баланс при назначении (центы, $1 = 100)</label>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">AI баланс при назначении (1 = $0.0001)</label>
             <input v-model.number="planForm.balance_usd_per_month" type="number" min="0" class="input text-sm" placeholder="0" />
             <p class="text-xs text-gray-400 mt-0.5">Добавляется к AI балансу пользователя при назначении тарифа</p>
           </div>
