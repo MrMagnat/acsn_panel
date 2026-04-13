@@ -101,7 +101,7 @@
                   >
                     <option value="">— выберите модель —</option>
                     <option v-for="m in ascnModels" :key="m.id" :value="m.id">
-                      {{ m.name }} · ${{ (m.price_usd / 10000).toFixed(4) }}/сообщ.
+                      {{ m.name }} · ${{ (m.price_usd / 10000).toFixed(4).replace(/\.?0+$/, '') }}/сообщ.
                     </option>
                   </select>
                   <p class="text-xs text-gray-400 mt-1">Баланс: <span :class="subStore.balanceUsd > 0 ? 'text-green-600' : 'text-red-500'">{{ subStore.balanceFormatted }}</span></p>

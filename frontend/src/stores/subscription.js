@@ -29,7 +29,7 @@ export const useSubscriptionStore = defineStore('subscription', () => {
 
   // Долларовый баланс в единицах (1 = $0.0001) → строка "$X.XXXX"
   const balanceUsd = computed(() => data.value?.balance_usd ?? 0)
-  const balanceFormatted = computed(() => `$${(balanceUsd.value / 10000).toFixed(4)}`)
+  const balanceFormatted = computed(() => `$${(balanceUsd.value / 10000).toFixed(4).replace(/\.?0+$/, '')}`)
 
   // Лимиты (из подписки)
   const maxAgents = computed(() => data.value?.max_agents ?? 1)

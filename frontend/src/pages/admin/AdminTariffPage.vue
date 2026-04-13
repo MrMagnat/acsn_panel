@@ -56,8 +56,8 @@
               <span>🗃️ {{ plan.max_knowledge_bases }} KB</span>
               <span>🪙 {{ plan.tokens_per_month.toLocaleString('ru') }} ток./мес</span>
               <span v-if="plan.price_usd === 0" class="text-green-600">Бесплатно</span>
-              <span v-else class="text-gray-700 font-medium">${{ (plan.price_usd / 10000).toFixed(4) }}/мес</span>
-              <span v-if="plan.balance_usd_per_month > 0" class="text-blue-600">· ${{ (plan.balance_usd_per_month / 10000).toFixed(4) }} AI</span>
+              <span v-else class="text-gray-700 font-medium">${{ (plan.price_usd / 10000).toFixed(4).replace(/\.?0+$/, '') }}/мес</span>
+              <span v-if="plan.balance_usd_per_month > 0" class="text-blue-600">· ${{ (plan.balance_usd_per_month / 10000).toFixed(4).replace(/\.?0+$/, '') }} AI</span>
             </div>
           </div>
 

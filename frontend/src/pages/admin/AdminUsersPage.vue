@@ -178,7 +178,7 @@
               <div class="flex items-center justify-between mb-3">
                 <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider">AI Баланс</div>
                 <div v-if="profileData" class="text-sm font-bold" :class="profileData.balance_usd > 0 ? 'text-green-600' : 'text-gray-400'">
-                  ${{ (profileData.balance_usd / 10000).toFixed(4) }}
+                  ${{ (profileData.balance_usd / 10000).toFixed(4).replace(/\.?0+$/, '') }}
                 </div>
               </div>
               <div class="space-y-2">

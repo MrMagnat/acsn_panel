@@ -47,7 +47,7 @@
                 <label class="text-xs text-gray-500">Цена (1 = $0.0001)</label>
                 <div class="flex gap-2 mt-0.5">
                   <input v-model.number="model.price_usd" type="number" min="0" class="input text-xs flex-1" />
-                  <span class="text-xs text-gray-400 self-center">${{ (model.price_usd / 10000).toFixed(4) }}</span>
+                  <span class="text-xs text-gray-400 self-center">${{ (model.price_usd / 10000).toFixed(4).replace(/\.?0+$/, '') }}</span>
                   <button class="text-red-400 hover:text-red-600 text-xs" @click="config.models.splice(idx, 1)">✕</button>
                 </div>
               </div>
