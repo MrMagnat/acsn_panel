@@ -11,9 +11,21 @@
         :key="tool.id"
         class="card p-5 flex flex-col gap-2"
       >
-        <div class="flex items-start justify-between">
-          <h3 class="font-semibold text-gray-900">{{ tool.name }}</h3>
-          <span class="badge-active text-xs">Активен</span>
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <h3 class="font-semibold text-gray-900">{{ tool.name }}</h3>
+            <a
+              v-if="tool.is_maintenance"
+              href="https://t.me/ascnai_nocode"
+              target="_blank"
+              rel="noopener"
+              class="shrink-0 text-orange-500 hover:text-orange-600"
+              title="Инструмент временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
+              @click.stop
+            >🔧</a>
+          </div>
+          <span v-if="tool.is_maintenance" class="shrink-0 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-medium">тех.обслуживание</span>
+          <span v-else class="badge-active text-xs shrink-0">Активен</span>
         </div>
         <p class="text-sm text-gray-500 flex-1">{{ tool.description || 'Без описания' }}</p>
         <div class="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
