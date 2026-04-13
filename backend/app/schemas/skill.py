@@ -11,6 +11,7 @@ class SkillResponse(BaseModel):
     icon: str
     category: str
     is_active: bool
+    is_maintenance: bool = False
     sort_order: int
     created_at: datetime
 
@@ -33,6 +34,7 @@ class SkillCreate(BaseModel):
     icon: str = "✨"
     category: str = ""
     is_active: bool = True
+    is_maintenance: bool = False
     sort_order: int = 0
 
 
@@ -44,4 +46,5 @@ class SkillUpdate(BaseModel):
     icon: str | None = None
     category: str | None = None
     is_active: bool | None = None
+    is_maintenance: bool | None = None
     sort_order: int | None = None

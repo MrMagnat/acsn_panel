@@ -10,11 +10,19 @@
           <div class="flex items-center gap-3 mb-1">
             <RouterLink to="/cabinet/office" class="text-gray-400 hover:text-gray-600 text-sm">← Офис</RouterLink>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 flex-wrap">
             <h1 class="text-2xl font-bold text-gray-900">{{ agent.name }}</h1>
             <span :class="agent.is_active ? 'badge-active' : 'badge-inactive'">
               {{ agent.is_active ? 'Активен' : 'Неактивен' }}
             </span>
+            <a
+              v-if="agent.is_maintenance"
+              href="https://t.me/ascnai_nocode"
+              target="_blank"
+              rel="noopener"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 text-xs font-medium hover:bg-orange-200 transition-colors"
+              title="Агент временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
+            >🔧 тех.обслуживание</a>
           </div>
           <p v-if="agent.description" class="text-gray-500 text-sm mt-1">{{ agent.description }}</p>
         </div>
@@ -86,7 +94,18 @@
                 <div class="flex items-center gap-2.5 min-w-0">
                   <span class="text-xl shrink-0">{{ as_.skill.icon }}</span>
                   <div class="min-w-0">
-                    <div class="text-sm font-medium text-gray-800 truncate">{{ as_.skill.name }}</div>
+                    <div class="flex items-center gap-1">
+                      <div class="text-sm font-medium text-gray-800 truncate">{{ as_.skill.name }}</div>
+                      <a
+                        v-if="as_.skill.is_maintenance"
+                        href="https://t.me/ascnai_nocode"
+                        target="_blank"
+                        rel="noopener"
+                        class="shrink-0 text-orange-500 hover:text-orange-600 text-xs"
+                        title="Скилл временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
+                        @click.stop
+                      >🔧</a>
+                    </div>
                     <div v-if="as_.skill.description" class="text-xs text-gray-400 truncate">{{ as_.skill.description }}</div>
                   </div>
                 </div>

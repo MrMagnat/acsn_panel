@@ -26,7 +26,17 @@
             <div class="flex items-start gap-3">
               <span class="text-3xl shrink-0">{{ skill.icon }}</span>
               <div class="min-w-0">
-                <div class="font-semibold text-gray-900 text-sm">{{ skill.name }}</div>
+                <div class="flex items-center gap-1.5">
+                  <div class="font-semibold text-gray-900 text-sm">{{ skill.name }}</div>
+                  <a
+                    v-if="skill.is_maintenance"
+                    href="https://t.me/ascnai_nocode"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-orange-500 hover:text-orange-600 text-sm"
+                    title="Скилл временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
+                  >🔧</a>
+                </div>
                 <p v-if="skill.description" class="text-xs text-gray-500 mt-0.5 line-clamp-3">{{ skill.description }}</p>
               </div>
             </div>

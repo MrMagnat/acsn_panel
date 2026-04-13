@@ -11,6 +11,7 @@ class UserAgent(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_maintenance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     energy_left: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     llm_url: Mapped[str] = mapped_column(String(500), default="")
     llm_model: Mapped[str | None] = mapped_column(String(200), nullable=True)

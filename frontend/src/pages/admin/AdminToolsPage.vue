@@ -75,6 +75,10 @@
           <input type="checkbox" v-model="form.is_active" class="w-4 h-4 rounded" />
           <label class="text-sm text-gray-700">Активен (доступен пользователям)</label>
         </div>
+        <div class="flex items-center gap-3">
+          <input type="checkbox" v-model="form.is_maintenance" class="w-4 h-4 rounded accent-orange-500" />
+          <label class="text-sm text-orange-600 font-medium">🔧 В ремонте (отображается, но помечен)</label>
+        </div>
 
         <!-- Владелец инструмента -->
         <div>
@@ -242,7 +246,7 @@ const filteredUsers = ref([])
 
 const form = ref({
   name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true,
-  energy_cost: 10, fields: [], output_fields: [], owner_user_id: null,
+  is_maintenance: false, energy_cost: 10, fields: [], output_fields: [], owner_user_id: null,
 })
 
 onMounted(async () => {
@@ -282,6 +286,7 @@ function selectTool(tool) {
     trigger_hint: tool.trigger_hint ?? '',
     webhook_url: tool.webhook_url,
     is_active: tool.is_active,
+    is_maintenance: tool.is_maintenance ?? false,
     energy_cost: tool.energy_cost,
     fields: tool.fields?.map((f) => ({ ...f })) ?? [],
     output_fields: tool.output_fields?.map((f) => ({ ...f })) ?? [],
@@ -299,7 +304,7 @@ function selectTool(tool) {
 
 function openCreate() {
   selected.value = { id: null }
-  form.value = { name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true, energy_cost: 10, fields: [], output_fields: [], owner_user_id: null }
+  form.value = { name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true, is_maintenance: false, energy_cost: 10, fields: [], output_fields: [], owner_user_id: null }
   ownerSearch.value = ''
   filteredUsers.value = []
 }

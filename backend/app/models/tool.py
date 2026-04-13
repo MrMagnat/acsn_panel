@@ -13,6 +13,7 @@ class Tool(Base):
     trigger_hint: Mapped[str] = mapped_column(Text, default="")
     webhook_url: Mapped[str] = mapped_column(String(500), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_maintenance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     energy_cost: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     # Выходные поля: что инструмент возвращает. Формат: [{"name": "result"}, {"name": "email"}]
     output_fields: Mapped[list] = mapped_column(JSON, default=list, nullable=False)

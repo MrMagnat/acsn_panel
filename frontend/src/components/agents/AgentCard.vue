@@ -5,7 +5,18 @@
   >
     <!-- Шапка: название и статус -->
     <div class="flex items-start justify-between gap-2">
-      <h3 class="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">{{ agent.name }}</h3>
+      <div class="flex items-center gap-1.5 min-w-0">
+        <h3 class="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">{{ agent.name }}</h3>
+        <a
+          v-if="agent.is_maintenance"
+          href="https://t.me/ascnai_nocode"
+          target="_blank"
+          rel="noopener"
+          class="shrink-0 text-orange-500 hover:text-orange-600 text-base leading-none"
+          :title="`Агент временно на тех.обслуживании и может работать некорректно — подробнее у менеджера`"
+          @click.stop
+        >🔧</a>
+      </div>
       <span :class="agent.is_active ? 'badge-active' : 'badge-inactive'" class="shrink-0">
         {{ agent.is_active ? 'Активен' : 'Неактивен' }}
       </span>

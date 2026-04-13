@@ -27,6 +27,7 @@ class AgentUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
+    is_maintenance: Optional[bool] = None
     llm_url: Optional[str] = None
     llm_model: Optional[str] = None
     llm_token: Optional[str] = None
@@ -41,6 +42,7 @@ class AgentResponse(BaseModel):
     name: str
     description: str
     is_active: bool
+    is_maintenance: bool = False
     energy_left: int
     llm_url: str
     llm_model: Optional[str] = None
@@ -72,6 +74,7 @@ class AgentListItem(BaseModel):
     id: str
     name: str
     is_active: bool
+    is_maintenance: bool = False
     energy_left: int
     tools_count: int
 

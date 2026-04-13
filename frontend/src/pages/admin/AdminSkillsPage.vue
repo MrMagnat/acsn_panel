@@ -87,6 +87,10 @@
               <input type="checkbox" v-model="form.is_active" id="skill-active" class="w-4 h-4" />
               <label for="skill-active" class="text-sm text-gray-700 cursor-pointer">Активен (виден пользователям)</label>
             </div>
+            <div class="flex items-center gap-2">
+              <input type="checkbox" v-model="form.is_maintenance" id="skill-maintenance" class="w-4 h-4 accent-orange-500" />
+              <label for="skill-maintenance" class="text-sm text-orange-600 font-medium cursor-pointer">🔧 В ремонте (отображается, но помечен)</label>
+            </div>
             <div>
               <label class="label">Порядок сортировки</label>
               <input v-model.number="form.sort_order" type="number" class="input text-sm w-24" />
@@ -118,7 +122,7 @@ const editingSkill = ref(null)
 
 const DEFAULTS = {
   name: '', slug: '', description: '', content: '',
-  icon: '✨', category: '', is_active: true, sort_order: 0,
+  icon: '✨', category: '', is_active: true, is_maintenance: false, sort_order: 0,
 }
 const form = ref({ ...DEFAULTS })
 
@@ -152,6 +156,7 @@ function openEdit(skill) {
     icon: skill.icon || '✨',
     category: skill.category || '',
     is_active: skill.is_active,
+    is_maintenance: skill.is_maintenance ?? false,
     sort_order: skill.sort_order,
   }
   showModal.value = true

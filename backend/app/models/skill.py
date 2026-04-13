@@ -14,6 +14,7 @@ class Skill(Base):
     icon: Mapped[str] = mapped_column(String(50), default="✨")
     category: Mapped[str] = mapped_column(String(100), default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_maintenance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

@@ -29,6 +29,7 @@ class ToolBase(BaseModel):
     trigger_hint: str = ""
     webhook_url: str
     is_active: bool = True
+    is_maintenance: bool = False
     energy_cost: int = 10
     output_fields: list = []  # [{"name": "result"}, ...]
 
@@ -44,6 +45,7 @@ class ToolUpdate(BaseModel):
     trigger_hint: Optional[str] = None
     webhook_url: Optional[str] = None
     is_active: Optional[bool] = None
+    is_maintenance: Optional[bool] = None
     energy_cost: Optional[int] = None
     fields: Optional[list[ToolFieldCreate]] = None
     output_fields: Optional[list] = None

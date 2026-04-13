@@ -93,6 +93,10 @@
               <input type="checkbox" v-model="form.is_active" class="w-4 h-4 rounded" />
               <label class="text-sm text-gray-700">Активен (виден пользователям)</label>
             </div>
+            <div class="flex items-center gap-3">
+              <input type="checkbox" v-model="form.is_maintenance" class="w-4 h-4 rounded accent-orange-500" />
+              <label class="text-sm text-orange-600 font-medium">🔧 В ремонте (отображается, но помечен)</label>
+            </div>
 
             <!-- Подсказки -->
             <div>
@@ -224,7 +228,7 @@ const tabs = [
 
 const form = ref({
   name: '', description: '', llm_url: '', llm_model: '', llm_token: '', prompt: '', skills: '',
-  is_active: true, energy_per_chat: 5, tool_ids: [], skill_ids: [], prompt_suggestions: ['', '', ''],
+  is_active: true, is_maintenance: false, energy_per_chat: 5, tool_ids: [], skill_ids: [], prompt_suggestions: ['', '', ''],
 })
 
 const totalEnergy = computed(() => {
@@ -259,6 +263,7 @@ function selectTemplate(t) {
     prompt: t.prompt,
     skills: t.skills,
     is_active: t.is_active,
+    is_maintenance: t.is_maintenance ?? false,
     energy_per_chat: t.energy_per_chat,
     tool_ids: t.tools?.map((tool) => tool.id) ?? [],
     skill_ids: t.skill_ids ?? [],
@@ -269,7 +274,7 @@ function selectTemplate(t) {
 function openCreate() {
   selected.value = { id: null }
   activeTab.value = 'basic'
-  form.value = { name: '', description: '', llm_url: '', llm_model: '', llm_token: '', prompt: '', skills: '', is_active: true, energy_per_chat: 5, tool_ids: [], skill_ids: [], prompt_suggestions: ['', '', ''] }
+  form.value = { name: '', description: '', llm_url: '', llm_model: '', llm_token: '', prompt: '', skills: '', is_active: true, is_maintenance: false, energy_per_chat: 5, tool_ids: [], skill_ids: [], prompt_suggestions: ['', '', ''] }
 }
 
 async function saveTemplate() {

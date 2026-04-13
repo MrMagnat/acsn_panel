@@ -1,14 +1,26 @@
 <template>
   <!-- Плитка инструмента -->
-  <div class="card p-4 flex items-center justify-between gap-3">
+  <div class="card p-4 flex items-center justify-between gap-3" :class="agentTool.tool.is_maintenance ? 'border-orange-200 bg-orange-50/30' : ''">
     <!-- Левая часть — клик открывает настройки -->
     <div class="flex items-center gap-3 min-w-0 cursor-pointer flex-1" @click="openModal = true">
       <div class="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center text-lg shrink-0">🔧</div>
       <div class="min-w-0">
-        <div class="font-medium text-sm text-gray-900 truncate">{{ agentTool.tool.name }}</div>
+        <div class="flex items-center gap-1.5">
+          <div class="font-medium text-sm text-gray-900 truncate">{{ agentTool.tool.name }}</div>
+          <a
+            v-if="agentTool.tool.is_maintenance"
+            href="https://t.me/ascnai_nocode"
+            target="_blank"
+            rel="noopener"
+            class="shrink-0 text-orange-500 hover:text-orange-600"
+            title="Инструмент временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
+            @click.stop
+          >🔧</a>
+        </div>
         <span :class="agentTool.is_configured ? 'badge-active' : 'badge-warning'" class="mt-0.5 inline-block">
           {{ agentTool.is_configured ? 'Настроен' : 'Не активен' }}
         </span>
+        <span v-if="agentTool.tool.is_maintenance" class="ml-1 text-xs text-orange-500 font-medium">тех.обслуживание</span>
       </div>
     </div>
 
