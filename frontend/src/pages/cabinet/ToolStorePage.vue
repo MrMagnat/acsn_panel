@@ -159,6 +159,14 @@
                   </p>
                 </div>
               </div>
+              <!-- textarea — multiline auto-resize -->
+              <textarea v-else-if="field.field_type === 'textarea'"
+                v-model="runFields[field.field_name]"
+                class="input resize-none overflow-hidden"
+                rows="2"
+                :placeholder="field.hint || field.field_name"
+                @input="e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }"
+              ></textarea>
               <!-- text / url / number -->
               <input v-else
                 v-model="runFields[field.field_name]"

@@ -163,6 +163,7 @@
                     <option value="json">json — объект JSON</option>
                     <option value="select">select — выбор из списка</option>
                     <option value="array">array — массив</option>
+                    <option value="textarea">textarea — многострочный текст</option>
                     <option value="base">base — база знаний</option>
                     <option value="ai_token">ai_token — ИИ оператор</option>
                   </select>

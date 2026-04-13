@@ -231,6 +231,16 @@
             </p>
           </div>
 
+          <!-- textarea — multiline auto-resize -->
+          <textarea
+            v-else-if="field.field_type === 'textarea'"
+            v-model="localData[field.field_name]"
+            class="input resize-none overflow-hidden text-sm"
+            rows="2"
+            :placeholder="field.hint || ''"
+            @input="e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; emitUpdate() }"
+          ></textarea>
+
           <!-- everything else -->
           <input
             v-else

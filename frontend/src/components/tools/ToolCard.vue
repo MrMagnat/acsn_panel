@@ -77,6 +77,13 @@
             <textarea v-else-if="field.field_type === 'json'" v-model="localValues[field.field_name]"
               class="input resize-none h-24 font-mono text-xs"
               :placeholder="field.hint || '{ key: value }'"></textarea>
+            <!-- textarea — multiline auto-resize -->
+            <textarea v-else-if="field.field_type === 'textarea'" v-model="localValues[field.field_name]"
+              class="input resize-none overflow-hidden"
+              rows="2"
+              :placeholder="field.hint || field.field_name"
+              @input="e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }"
+            ></textarea>
             <!-- text / url / number -->
             <input v-else v-model="localValues[field.field_name]" class="input"
               :placeholder="field.hint || field.field_name"
