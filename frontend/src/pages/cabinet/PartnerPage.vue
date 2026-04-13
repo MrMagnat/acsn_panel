@@ -47,11 +47,11 @@
     <div class="mb-6">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-semibold text-gray-800">Мои инструменты</h2>
-        <a href="https://t.me/mmrMagnat" target="_blank" class="text-xs text-primary-600 hover:underline">+ Добавить инструмент</a>
+        <a href="https://t.me/ascn_stepan" target="_blank" class="text-xs text-primary-600 hover:underline">+ Добавить инструмент</a>
       </div>
       <div v-if="tools.length === 0" class="card p-8 text-center text-gray-400 text-sm">
         У вас пока нет инструментов в партнёрской программе.<br>
-        <a href="https://t.me/mmrMagnat" target="_blank" class="text-primary-600 hover:underline mt-2 inline-block">Связаться с менеджером для добавления</a>
+        <a href="https://t.me/ascn_stepan" target="_blank" class="text-primary-600 hover:underline mt-2 inline-block">Связаться с менеджером для добавления</a>
       </div>
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div v-for="tool in tools" :key="tool.id" class="card p-4">
