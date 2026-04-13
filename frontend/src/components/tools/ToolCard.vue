@@ -122,6 +122,10 @@
             <div class="text-xs text-gray-400">Изменить параметры перед запуском</div>
           </div>
         </button>
+        <div v-if="estimatedCost > 0" class="text-xs text-center text-gray-500 border-t border-gray-100 pt-2 mt-1">
+          💳 Спишется: <span class="font-medium text-gray-800">${{ (estimatedCost / 10000).toFixed(4).replace(/\.?0+$/, '') }}</span>
+          &nbsp;·&nbsp; Баланс: <span :class="subStore.balanceUsd >= estimatedCost ? 'text-green-600' : 'text-red-500'">{{ subStore.balanceFormatted }}</span>
+        </div>
         <button class="text-sm text-gray-400 hover:text-gray-600 mt-1 text-center" @click="showRunChoice = false">Отмена</button>
       </div>
     </div>
@@ -205,7 +209,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, computed, onUnmounted } from 'vue'
+import { ref, reactive, watch, computed, onMounted, onUnmounted } from 'vue'
 import { agentsApi } from '@/api/agents'
 import { useToastStore } from '@/stores/toast'
 import { useSubscriptionStore } from '@/stores/subscription'
@@ -221,6 +225,16 @@ const emit = defineEmits(['update', 'remove'])
 
 const toast = useToastStore()
 const subStore = useSubscriptionStore()
+const ascnModels = ref([])
+
+onMounted(async () => {
+  try {
+    const { default: http } = await import('@/api/http')
+    const res = await http.get('/onboarding/ascn-models')
+    ascnModels.value = res.data
+  } catch {}
+})
+
 const openModal = ref(false)
 const showMaintenance = ref(false)
 const showNotConfigured = ref(false)
@@ -241,6 +255,22 @@ watch(() => props.agentTool.field_values, (v) => { Object.assign(localValues, v)
 const statusLabel = computed(() => {
   if (!runLog.value) return 'Запускаем...'
   return { running: 'Выполняется...', success: 'Выполнено', error: 'Ошибка', cancelled: 'Остановлено' }[runLog.value.status] ?? runLog.value.status
+})
+
+// Расчёт стоимости по сохранённым значениям: ai_token в ASCN-режиме * коэффициент
+const estimatedCost = computed(() => {
+  const fields = props.agentTool.tool.fields || []
+  let total = 0
+  for (const field of fields) {
+    if (field.field_type !== 'ai_token') continue
+    const val = localValues[field.field_name]
+    if (!val || typeof val !== 'object' || val.token !== '__ascn__' || !val.model) continue
+    const multiplier = parseFloat(field.options || '1') || 1
+    const modelObj = ascnModels.value.find(m => m.id === val.model)
+    if (!modelObj) continue
+    total += Math.round((modelObj.price_usd || 0) * multiplier)
+  }
+  return total
 })
 
 function parseOptions(options) {

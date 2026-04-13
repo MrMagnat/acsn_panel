@@ -177,11 +177,19 @@
               <p v-if="field.hint && !['json','array','base','ai_token'].includes(field.field_type)" class="text-xs text-gray-400 mt-1">{{ field.hint }}</p>
             </div>
           </div>
-          <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
-            <button class="btn-secondary text-sm" @click="closeRunModal">Отмена</button>
-            <button class="btn-primary text-sm" :disabled="launching" @click="launchTool">
-              {{ launching ? '...' : '▶ Запустить' }}
-            </button>
+          <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-2">
+            <span v-if="estimatedCost > 0" class="text-xs text-gray-500">
+              💳 Спишется: <span class="font-medium text-gray-800">${{ (estimatedCost / 10000).toFixed(4).replace(/\.?0+$/, '') }}</span>
+              <span class="mx-1 text-gray-300">·</span>
+              Баланс: <span :class="subStore.balanceUsd >= estimatedCost ? 'text-green-600' : 'text-red-500'">{{ subStore.balanceFormatted }}</span>
+            </span>
+            <span v-else></span>
+            <div class="flex gap-2">
+              <button class="btn-secondary text-sm" @click="closeRunModal">Отмена</button>
+              <button class="btn-primary text-sm" :disabled="launching" @click="launchTool">
+                {{ launching ? '...' : '▶ Запустить' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -249,7 +257,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import MaintenanceModal from '@/components/MaintenanceModal.vue'
 import { useToolsStore } from '@/stores/tools'
 import { toolsApi } from '@/api/tools'
@@ -282,6 +290,22 @@ const kbData = reactive({})          // { [kbId]: { fields: [], records: [] } }
 // AI token fields
 const ascnModels = ref([])
 const aiTokenSelections = reactive({})  // { [fieldName]: { mode, model, operator, token } }
+
+// Расчёт стоимости запуска: сумма по всем ai_token полям в режиме ASCN
+const estimatedCost = computed(() => {
+  if (!runModal.value?.fields) return 0
+  let total = 0
+  for (const field of runModal.value.fields) {
+    if (field.field_type !== 'ai_token') continue
+    const sel = aiTokenSelections[field.field_name]
+    if (!sel || (sel.mode || 'ascn') !== 'ascn' || !sel.model) continue
+    const multiplier = parseFloat(field.options || '1') || 1
+    const modelObj = ascnModels.value.find(m => m.id === sel.model)
+    if (!modelObj) continue
+    total += Math.round((modelObj.price_usd || 0) * multiplier)
+  }
+  return total
+})
 
 const showResult = ref(false)
 const runLog = ref(null)
