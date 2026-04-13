@@ -33,6 +33,10 @@
           <label class="label mb-0">Активен</label>
           <input type="checkbox" v-model="form.is_active" class="w-4 h-4 rounded" />
         </div>
+        <div class="flex items-center gap-3">
+          <label class="label mb-0 text-orange-600">🔧 В ремонте</label>
+          <input type="checkbox" v-model="form.is_maintenance" class="w-4 h-4 rounded accent-orange-500" />
+        </div>
         <div class="flex gap-3 pt-2">
           <button type="button" class="btn-secondary flex-1" @click="$emit('close')">Отмена</button>
           <button type="submit" class="btn-primary flex-1" :disabled="saving || deleting">
@@ -81,6 +85,7 @@ const form = ref({
   llm_url: props.agent.llm_url,
   prompt: props.agent.prompt,
   is_active: props.agent.is_active,
+  is_maintenance: props.agent.is_maintenance ?? false,
 })
 
 async function handleDelete() {
@@ -106,6 +111,7 @@ async function handleSave() {
       llm_url: form.value.llm_url,
       prompt: form.value.prompt,
       is_active: form.value.is_active,
+      is_maintenance: form.value.is_maintenance,
     }
     const updated = await agentsStore.updateAgent(props.agent.id, payload)
     toast.success('Агент обновлён')

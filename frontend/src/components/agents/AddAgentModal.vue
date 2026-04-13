@@ -41,9 +41,21 @@
               :disabled="creating"
               @click="selectTemplate(t)"
             >
-              <div class="font-semibold text-sm text-gray-900">{{ t.name }}</div>
+              <div class="flex items-center gap-1.5">
+                <div class="font-semibold text-sm text-gray-900">{{ t.name }}</div>
+                <a
+                  v-if="t.is_maintenance"
+                  href="https://t.me/ascnai_nocode"
+                  target="_blank"
+                  rel="noopener"
+                  class="text-orange-500 hover:text-orange-600 text-xs"
+                  title="Агент временно на тех.обслуживании и может работать некорректно — подробнее у менеджера"
+                  @click.stop
+                >🔧</a>
+              </div>
               <div class="text-xs text-gray-500 mt-1 line-clamp-2">{{ t.description || 'Без описания' }}</div>
               <div class="mt-2 flex flex-wrap gap-1">
+                <span v-if="t.is_maintenance" class="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 font-medium">тех.обслуживание</span>
                 <span v-for="tool in t.tools" :key="tool.id" class="badge-inactive text-xs">{{ tool.name }}</span>
               </div>
             </button>
