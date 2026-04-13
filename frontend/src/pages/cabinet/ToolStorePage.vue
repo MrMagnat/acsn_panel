@@ -26,10 +26,7 @@
         <p class="text-sm text-gray-500 flex-1">{{ tool.description || 'Без описания' }}</p>
         <div class="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
           <span class="text-xs text-gray-400">⚡ {{ tool.energy_cost }} за вызов</span>
-          <span v-if="tool.price_usd > 0" class="text-xs text-blue-600 font-medium">
-            💳 ${{ (tool.price_usd / 10000).toFixed(4).replace(/\.?0+$/, '') }}
-          </span>
-          <span v-else class="text-xs text-gray-400">{{ tool.fields?.length ?? 0 }} полей</span>
+          <span class="text-xs text-gray-400">{{ tool.fields?.length ?? 0 }} полей</span>
         </div>
         <button
           class="mt-1 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary-100 text-primary-700 hover:bg-primary-200 transition-colors"
@@ -180,18 +177,11 @@
               <p v-if="field.hint && !['json','array','base','ai_token'].includes(field.field_type)" class="text-xs text-gray-400 mt-1">{{ field.hint }}</p>
             </div>
           </div>
-          <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-2">
-            <span v-if="runModal.price_usd > 0" class="text-xs text-gray-500">
-              💳 Спишется: <span class="font-medium text-gray-700">${{ (runModal.price_usd / 10000).toFixed(4).replace(/\.?0+$/, '') }}</span>
-              &nbsp;·&nbsp; Баланс: <span :class="subStore.balanceUsd > 0 ? 'text-green-600' : 'text-red-500'">{{ subStore.balanceFormatted }}</span>
-            </span>
-            <span v-else></span>
-            <div class="flex gap-2">
-              <button class="btn-secondary text-sm" @click="closeRunModal">Отмена</button>
-              <button class="btn-primary text-sm" :disabled="launching" @click="launchTool">
-                {{ launching ? '...' : '▶ Запустить' }}
-              </button>
-            </div>
+          <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+            <button class="btn-secondary text-sm" @click="closeRunModal">Отмена</button>
+            <button class="btn-primary text-sm" :disabled="launching" @click="launchTool">
+              {{ launching ? '...' : '▶ Запустить' }}
+            </button>
           </div>
         </div>
       </div>

@@ -41,19 +41,14 @@
         </div>
 
         <!-- Основные поля -->
-        <div class="grid grid-cols-3 gap-4">
-          <div class="col-span-1">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
             <label class="label">Название</label>
             <input v-model="form.name" class="input" />
           </div>
           <div>
             <label class="label">Стоимость энергии</label>
             <input v-model.number="form.energy_cost" type="number" min="0" class="input" />
-          </div>
-          <div>
-            <label class="label">Цена ИИ (1 = $0.0001)</label>
-            <input v-model.number="form.price_usd" type="number" min="0" class="input" placeholder="0" />
-            <p class="text-xs text-gray-400 mt-1">Списывается с ИИ баланса при запуске через ASCN</p>
           </div>
         </div>
         <div>
@@ -207,11 +202,24 @@
               <div v-if="field.field_type === 'base'" class="text-xs text-green-700 bg-green-50 rounded px-2 py-1">
                 Пользователь выберет свою базу знаний и колонки при запуске → в webhook отправится как <code>[[val1, val2], [val1, val2]]</code>
               </div>
-              <!-- Подсказка для ai_token -->
-              <div v-if="field.field_type === 'ai_token'" class="text-xs text-orange-700 bg-orange-50 rounded px-2 py-1 space-y-1">
-                <div>Пользователь выбирает оператора ИИ и модель. В webhook отправится объект:</div>
-                <code class="block">{"operator": "ascn", "model": "openai/gpt-4o-mini", "token": "__ascn__"}</code>
-                <div class="text-orange-500">Токен <strong>__ascn__</strong> будет заменён реальным ключом сервером. Пользователь ключ не видит.</div>
+              <!-- Коэффициент и подсказка для ai_token -->
+              <div v-if="field.field_type === 'ai_token'" class="space-y-2">
+                <div class="flex items-end gap-3">
+                  <div class="flex-1">
+                    <label class="text-xs text-gray-500">Коэффициент наценки × <span class="text-gray-400">(цена = модель × коэф.)</span></label>
+                    <input
+                      :value="field.options || '1'"
+                      @input="field.options = $event.target.value"
+                      type="number" min="0" step="0.1"
+                      class="input text-xs mt-0.5"
+                      placeholder="1"
+                    />
+                  </div>
+                </div>
+                <div class="text-xs text-orange-700 bg-orange-50 rounded px-2 py-1 space-y-1">
+                  <div>Пользователь выбирает оператора ИИ и модель. Списывается <strong>цена_модели × коэффициент</strong> с ИИ баланса (только ASCN). Свой токен — бесплатно.</div>
+                  <div class="text-orange-500">Токен <strong>__ascn__</strong> будет заменён реальным ключом сервером.</div>
+                </div>
               </div>
               <!-- is_runtime toggle -->
               <div class="flex items-center gap-2 pt-1 border-t border-gray-200">
@@ -252,7 +260,7 @@ const filteredUsers = ref([])
 
 const form = ref({
   name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true,
-  is_maintenance: false, energy_cost: 10, price_usd: 0, fields: [], output_fields: [], owner_user_id: null,
+  is_maintenance: false, energy_cost: 10, fields: [], output_fields: [], owner_user_id: null,
 })
 
 onMounted(async () => {
@@ -294,7 +302,6 @@ function selectTool(tool) {
     is_active: tool.is_active,
     is_maintenance: tool.is_maintenance ?? false,
     energy_cost: tool.energy_cost,
-    price_usd: tool.price_usd ?? 0,
     fields: tool.fields?.map((f) => ({ ...f })) ?? [],
     output_fields: tool.output_fields?.map((f) => ({ ...f })) ?? [],
     owner_user_id: tool.owner_user_id ?? null,
@@ -311,7 +318,7 @@ function selectTool(tool) {
 
 function openCreate() {
   selected.value = { id: null }
-  form.value = { name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true, is_maintenance: false, energy_cost: 10, price_usd: 0, fields: [], output_fields: [], owner_user_id: null }
+  form.value = { name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true, is_maintenance: false, energy_cost: 10, fields: [], output_fields: [], owner_user_id: null }
   ownerSearch.value = ''
   filteredUsers.value = []
 }

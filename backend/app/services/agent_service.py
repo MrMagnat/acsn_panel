@@ -48,14 +48,48 @@ def _uses_ascn_token(field_values: dict, tool_fields: list) -> bool:
 
 
 async def _deduct_ascn_balance(subscription, tool, field_values: dict, tool_fields: list, db: AsyncSession) -> None:
-    """Списывает balance_usd за запуск инструмента с ASCN ai_token, если price_usd > 0."""
+    """Списывает balance_usd за запуск инструмента с ASCN ai_token.
+    Цена = model.price_usd * коэффициент поля (хранится в field.options).
+    Только для ASCN-режима (__ascn__); свой токен — бесплатно.
+    """
+    import json as _json
     from sqlalchemy import update as _sa_upd
-    price = getattr(tool, 'price_usd', 0) or 0
-    if price <= 0:
+    from ..models.setting import Setting
+
+    total_price = 0
+
+    for field in tool_fields:
+        if field.field_type != "ai_token":
+            continue
+        val = field_values.get(field.field_name)
+        if not isinstance(val, dict) or val.get("token") != "__ascn__":
+            continue  # не ASCN-режим — не списываем
+
+        # Коэффициент хранится в field.options как строка числа, напр. "2.5"
+        try:
+            multiplier = float(field.options or "1")
+        except (ValueError, TypeError):
+            multiplier = 1.0
+        if multiplier <= 0:
+            continue
+
+        # Цена выбранной модели из admin-настроек
+        model_id = val.get("model", "")
+        setting_result = await db.execute(select(Setting).where(Setting.key == "ascn_config"))
+        cfg = setting_result.scalar_one_or_none()
+        model_price = 0
+        if cfg and cfg.value:
+            for m in _json.loads(cfg.value).get("models", []):
+                if m.get("id") == model_id:
+                    model_price = int(m.get("price_usd", 0))
+                    break
+
+        total_price += int(model_price * multiplier)
+
+    if total_price <= 0:
         return
-    if not _uses_ascn_token(field_values, tool_fields):
-        return
-    if subscription.balance_usd < price:
+
+    if subscription.balance_usd < total_price:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail="Недостаточно ИИ баланса для запуска инструмента",
@@ -63,7 +97,7 @@ async def _deduct_ascn_balance(subscription, tool, field_values: dict, tool_fiel
     await db.execute(
         _sa_upd(Subscription)
         .where(Subscription.id == subscription.id)
-        .values(balance_usd=Subscription.balance_usd - price)
+        .values(balance_usd=Subscription.balance_usd - total_price)
     )
 
 

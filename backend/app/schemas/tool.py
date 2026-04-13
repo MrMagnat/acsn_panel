@@ -31,7 +31,6 @@ class ToolBase(BaseModel):
     is_active: bool = True
     is_maintenance: bool = False
     energy_cost: int = 10
-    price_usd: int = 0  # цена в юнитах (1 = $0.0001)
     output_fields: list = []  # [{"name": "result"}, ...]
 
 
@@ -48,7 +47,6 @@ class ToolUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_maintenance: Optional[bool] = None
     energy_cost: Optional[int] = None
-    price_usd: Optional[int] = None
     fields: Optional[list[ToolFieldCreate]] = None
     output_fields: Optional[list] = None
     owner_user_id: Optional[str] = None
