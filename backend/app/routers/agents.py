@@ -25,6 +25,7 @@ async def list_agents(
             id=a.id,
             name=a.name,
             is_active=a.is_active,
+            is_maintenance=a.is_maintenance,
             energy_left=a.energy_left,
             tools_count=len(a.agent_tools),
         )

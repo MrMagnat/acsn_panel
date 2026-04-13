@@ -561,6 +561,7 @@ async def create_template_agent(
         skills=data.skills,
         energy_per_chat=data.energy_per_chat,
         is_active=data.is_active,
+        is_maintenance=data.is_maintenance,
         prompt_suggestions=_json.dumps(data.prompt_suggestions, ensure_ascii=False),
         skill_ids=data.skill_ids,
     )
@@ -970,6 +971,8 @@ def _template_to_response(template: TemplateAgent) -> TemplateAgentResponse:
         skills=template.skills,
         energy_per_chat=template.energy_per_chat,
         is_active=template.is_active,
+        is_maintenance=template.is_maintenance,
         prompt_suggestions=template.prompt_suggestions,
         tools=tools,
+        skill_ids=template.skill_ids or [],
     )
