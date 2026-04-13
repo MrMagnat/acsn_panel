@@ -36,6 +36,37 @@ async def _credit_partner_bonus(owner_user_id: str, from_user_id: str, tool, amo
     ))
 
 
+def _uses_ascn_token(field_values: dict, tool_fields: list) -> bool:
+    """Возвращает True если хоть одно поле ai_token использует ASCN-режим (__ascn__)."""
+    for field in tool_fields:
+        if field.field_type != "ai_token":
+            continue
+        val = field_values.get(field.field_name)
+        if isinstance(val, dict) and val.get("token") == "__ascn__":
+            return True
+    return False
+
+
+async def _deduct_ascn_balance(subscription, tool, field_values: dict, tool_fields: list, db: AsyncSession) -> None:
+    """Списывает balance_usd за запуск инструмента с ASCN ai_token, если price_usd > 0."""
+    from sqlalchemy import update as _sa_upd
+    price = getattr(tool, 'price_usd', 0) or 0
+    if price <= 0:
+        return
+    if not _uses_ascn_token(field_values, tool_fields):
+        return
+    if subscription.balance_usd < price:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Недостаточно ИИ баланса для запуска инструмента",
+        )
+    await db.execute(
+        _sa_upd(Subscription)
+        .where(Subscription.id == subscription.id)
+        .values(balance_usd=Subscription.balance_usd - price)
+    )
+
+
 async def _resolve_ascn_tokens(field_values: dict, tool_fields: list, db: AsyncSession) -> dict:
     """Подставляет реальный OpenRouter-ключ вместо __ascn__ в полях типа ai_token."""
     ai_token_fields = {f.field_name for f in tool_fields if f.field_type == "ai_token"}
@@ -347,6 +378,10 @@ async def run_tool_manually(agent_id: str, user_id: str, tool_id: str, db: Async
         tool_name=tool.name,
     ))
 
+    # Списываем ИИ баланс если инструмент использует ASCN ai_token
+    _fields = agent_tool.field_values or {}
+    await _deduct_ascn_balance(subscription, tool, _fields, tool.fields, db)
+
     # Партнёрский бонус владельцу (только для платных аккаунтов)
     is_free = (subscription.plan or "free").lower() in ("free", "")
     if tool.owner_user_id and not is_free:
@@ -375,7 +410,6 @@ async def run_tool_manually(agent_id: str, user_id: str, tool_id: str, db: Async
 
     from ..core.config import settings
     _base = base_url or settings.APP_BASE_URL
-    _fields = agent_tool.field_values or {}
     payload = {
         **_fields,
         "fields": _fields,
@@ -472,6 +506,9 @@ async def run_tool_standalone(user_id: str, tool_id: str, field_values: dict, db
         agent_id=None,
         tool_name=tool.name,
     ))
+
+    # Списываем ИИ баланс если инструмент использует ASCN ai_token
+    await _deduct_ascn_balance(subscription, tool, field_values, tool.fields, db)
 
     # Партнёрский бонус владельцу (только для платных аккаунтов)
     is_free = (subscription.plan or "free").lower() in ("free", "")

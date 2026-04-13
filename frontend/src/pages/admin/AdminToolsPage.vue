@@ -41,14 +41,19 @@
         </div>
 
         <!-- Основные поля -->
-        <div class="grid grid-cols-2 gap-4">
-          <div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="col-span-1">
             <label class="label">Название</label>
             <input v-model="form.name" class="input" />
           </div>
           <div>
             <label class="label">Стоимость энергии</label>
             <input v-model.number="form.energy_cost" type="number" min="0" class="input" />
+          </div>
+          <div>
+            <label class="label">Цена ИИ (1 = $0.0001)</label>
+            <input v-model.number="form.price_usd" type="number" min="0" class="input" placeholder="0" />
+            <p class="text-xs text-gray-400 mt-1">Списывается с ИИ баланса при запуске через ASCN</p>
           </div>
         </div>
         <div>
@@ -247,7 +252,7 @@ const filteredUsers = ref([])
 
 const form = ref({
   name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true,
-  is_maintenance: false, energy_cost: 10, fields: [], output_fields: [], owner_user_id: null,
+  is_maintenance: false, energy_cost: 10, price_usd: 0, fields: [], output_fields: [], owner_user_id: null,
 })
 
 onMounted(async () => {
@@ -289,6 +294,7 @@ function selectTool(tool) {
     is_active: tool.is_active,
     is_maintenance: tool.is_maintenance ?? false,
     energy_cost: tool.energy_cost,
+    price_usd: tool.price_usd ?? 0,
     fields: tool.fields?.map((f) => ({ ...f })) ?? [],
     output_fields: tool.output_fields?.map((f) => ({ ...f })) ?? [],
     owner_user_id: tool.owner_user_id ?? null,
@@ -305,7 +311,7 @@ function selectTool(tool) {
 
 function openCreate() {
   selected.value = { id: null }
-  form.value = { name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true, is_maintenance: false, energy_cost: 10, fields: [], output_fields: [], owner_user_id: null }
+  form.value = { name: '', description: '', trigger_hint: '', webhook_url: '', is_active: true, is_maintenance: false, energy_cost: 10, price_usd: 0, fields: [], output_fields: [], owner_user_id: null }
   ownerSearch.value = ''
   filteredUsers.value = []
 }

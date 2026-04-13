@@ -142,7 +142,7 @@ async def execute_trigger(trigger_id: str, agent_id: str, tool_id: str) -> None:
             at_result = await db.execute(
                 select(AgentTool)
                 .where(AgentTool.agent_id == agent_id, AgentTool.tool_id == tool_id, AgentTool.is_configured == True)
-                .options(selectinload(AgentTool.tool))
+                .options(selectinload(AgentTool.tool).selectinload(Tool.fields))
             )
             agent_tool = at_result.scalar_one_or_none()
             if not agent_tool:
@@ -175,6 +175,11 @@ async def execute_trigger(trigger_id: str, agent_id: str, tool_id: str) -> None:
                 agent_id=agent_id,
                 tool_name=agent_tool.tool.name,
             ))
+
+            # Списываем ИИ баланс если инструмент использует ASCN ai_token
+            from ..services.agent_service import _uses_ascn_token, _deduct_ascn_balance
+            _fv = agent_tool.field_values or {}
+            await _deduct_ascn_balance(subscription, agent_tool.tool, _fv, agent_tool.tool.fields, db)
 
             # Партнёрский бонус владельцу (только для платных аккаунтов)
             is_free = (subscription.plan or "free").lower() in ("free", "")

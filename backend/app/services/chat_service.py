@@ -285,6 +285,10 @@ async def send_message(
                         await _log_transaction(user_id, -energy_cost, f"Инструмент: {tool_name}", agent_id, tool_name, db)
                         total_energy_spent += energy_cost
 
+                        # Списываем ИИ баланс если инструмент использует ASCN ai_token
+                        from ..services.agent_service import _deduct_ascn_balance
+                        await _deduct_ascn_balance(subscription, matched_at.tool, merged_fields, matched_at.tool.fields, db)
+
                         # Начисляем партнёрский бонус владельцу инструмента (10%)
                         # Только если запускающий пользователь НЕ на Free тарифе
                         is_free_user = (subscription.plan or "free").lower() in ("free", "")

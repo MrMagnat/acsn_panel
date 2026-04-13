@@ -15,6 +15,7 @@ class Tool(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_maintenance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     energy_cost: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    price_usd: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # цена в юнитах (1 = $0.0001), списывается с balance_usd при запуске через ASCN
     # Выходные поля: что инструмент возвращает. Формат: [{"name": "result"}, {"name": "email"}]
     output_fields: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     owner_user_id: Mapped[str | None] = mapped_column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
