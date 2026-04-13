@@ -62,6 +62,7 @@ async def list_active_template_agents(
             skills=t.skills,
             energy_per_chat=t.energy_per_chat,
             is_active=t.is_active,
+            is_maintenance=t.is_maintenance,
             tools=[tt.tool for tt in t.template_tools if tt.tool],
         )
         for t in templates
